@@ -1,0 +1,9 @@
+[package]
+name = "mc6809-core"
+version = "0.1.0"
+edition = "2024"
+description = "Motorola 6809 CPU emulator core"
+
+[lib]
+name = "mc6809_core"
+path = "src/lib.rs"
