@@ -51,7 +51,7 @@ pub mod bus;
 mod cpu;
 pub mod registers;
 
-pub use bus::Bus;
+pub use bus::{Bus, BusSignals};
 pub use cpu::Cpu;
 pub use registers::{ConditionCodes, Registers};
 
