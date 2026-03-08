@@ -22,7 +22,7 @@ use mc6809_core::{Cpu, Bus};
 struct FlatRam([u8; 65536]);
 
 impl Bus for FlatRam {
-	fn read(&self, addr: u16) -> u8 { self.0[addr as usize] }
+	fn read(&mut self, addr: u16) -> u8 { self.0[addr as usize] }
 	fn write(&mut self, addr: u16, val: u8) { self.0[addr as usize] = val; }
 }
 

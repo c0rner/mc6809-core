@@ -39,7 +39,7 @@ impl TestBus {
 }
 
 impl Bus for TestBus {
-    fn read(&self, addr: u16) -> u8 {
+    fn read(&mut self, addr: u16) -> u8 {
         println!(
             "TestBus: Read {:04X} = {:02X}",
             addr, self.mem[addr as usize]

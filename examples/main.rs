@@ -34,7 +34,7 @@ impl FlatBus {
 }
 
 impl Bus for FlatBus {
-    fn read(&self, addr: u16) -> u8 {
+    fn read(&mut self, addr: u16) -> u8 {
         self.mem[addr as usize]
     }
 
