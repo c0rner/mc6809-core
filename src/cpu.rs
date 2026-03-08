@@ -77,7 +77,7 @@ impl Cpu {
     }
 
     /// Hardware reset: read PC from reset vector, set I+F, clear state.
-    pub fn reset(&mut self, bus: &impl Bus) {
+    pub fn reset(&mut self, bus: &mut impl Bus) {
         self.reg = Registers::new();
         self.reg.cc.set_irq_inhibit(true);
         self.reg.cc.set_firq_inhibit(true);
@@ -214,14 +214,14 @@ impl Cpu {
     }
 
     /// Pull a byte from the hardware stack (S).
-    pub(crate) fn pull_byte_s(&mut self, bus: &impl Bus) -> u8 {
+    pub(crate) fn pull_byte_s(&mut self, bus: &mut impl Bus) -> u8 {
         let val = bus.read(self.reg.s);
         self.reg.s = self.reg.s.wrapping_add(1);
         val
     }
 
     /// Pull a 16-bit word from the hardware stack (S).
-    pub(crate) fn pull_word_s(&mut self, bus: &impl Bus) -> u16 {
+    pub(crate) fn pull_word_s(&mut self, bus: &mut impl Bus) -> u16 {
         let hi = self.pull_byte_s(bus) as u16;
         let lo = self.pull_byte_s(bus) as u16;
         (hi << 8) | lo
@@ -240,14 +240,14 @@ impl Cpu {
     }
 
     /// Pull a byte from the user stack (U).
-    pub(crate) fn pull_byte_u(&mut self, bus: &impl Bus) -> u8 {
+    pub(crate) fn pull_byte_u(&mut self, bus: &mut impl Bus) -> u8 {
         let val = bus.read(self.reg.u);
         self.reg.u = self.reg.u.wrapping_add(1);
         val
     }
 
     /// Pull a 16-bit word from the user stack (U).
-    pub(crate) fn pull_word_u(&mut self, bus: &impl Bus) -> u16 {
+    pub(crate) fn pull_word_u(&mut self, bus: &mut impl Bus) -> u16 {
         let hi = self.pull_byte_u(bus) as u16;
         let lo = self.pull_byte_u(bus) as u16;
         (hi << 8) | lo
@@ -268,7 +268,7 @@ impl Cpu {
 
     /// Pull the entire register state from S (E flag was set).
     #[allow(dead_code)]
-    pub(crate) fn pull_entire_state(&mut self, bus: &impl Bus) {
+    pub(crate) fn pull_entire_state(&mut self, bus: &mut impl Bus) {
         let cc = self.pull_byte_s(bus);
         self.reg.cc = crate::registers::ConditionCodes::from_byte(cc);
         let a = self.pull_byte_s(bus);
@@ -285,14 +285,14 @@ impl Cpu {
     // ---- instruction fetch helpers ----
 
     /// Fetch a byte from [PC] and advance PC.
-    pub(crate) fn fetch_byte(&mut self, bus: &impl Bus) -> u8 {
+    pub(crate) fn fetch_byte(&mut self, bus: &mut impl Bus) -> u8 {
         let val = bus.read(self.reg.pc);
         self.reg.pc = self.reg.pc.wrapping_add(1);
         val
     }
 
     /// Fetch a big-endian 16-bit word from [PC] and advance PC by 2.
-    pub(crate) fn fetch_word(&mut self, bus: &impl Bus) -> u16 {
+    pub(crate) fn fetch_word(&mut self, bus: &mut impl Bus) -> u16 {
         let hi = self.fetch_byte(bus) as u16;
         let lo = self.fetch_byte(bus) as u16;
         (hi << 8) | lo
@@ -301,29 +301,29 @@ impl Cpu {
     // ---- addressing mode helpers ----
 
     /// Direct addressing: DP:fetch_byte → effective address.
-    pub(crate) fn addr_direct(&mut self, bus: &impl Bus) -> u16 {
+    pub(crate) fn addr_direct(&mut self, bus: &mut impl Bus) -> u16 {
         let lo = self.fetch_byte(bus) as u16;
         ((self.reg.dp as u16) << 8) | lo
     }
 
     /// Extended addressing: fetch 16-bit absolute address.
-    pub(crate) fn addr_extended(&mut self, bus: &impl Bus) -> u16 {
+    pub(crate) fn addr_extended(&mut self, bus: &mut impl Bus) -> u16 {
         self.fetch_word(bus)
     }
 
     /// Indexed addressing: decode post-byte and return (effective_address, extra_cycles).
-    pub(crate) fn addr_indexed(&mut self, bus: &impl Bus) -> (u16, u8) {
+    pub(crate) fn addr_indexed(&mut self, bus: &mut impl Bus) -> (u16, u8) {
         crate::addressing::indexed(self, bus)
     }
 
     /// Relative 8-bit: signed offset from current PC.
-    pub(crate) fn addr_relative8(&mut self, bus: &impl Bus) -> u16 {
+    pub(crate) fn addr_relative8(&mut self, bus: &mut impl Bus) -> u16 {
         let offset = self.fetch_byte(bus) as i8 as i16 as u16;
         self.reg.pc.wrapping_add(offset)
     }
 
     /// Relative 16-bit: signed offset from current PC.
-    pub(crate) fn addr_relative16(&mut self, bus: &impl Bus) -> u16 {
+    pub(crate) fn addr_relative16(&mut self, bus: &mut impl Bus) -> u16 {
         let offset = self.fetch_word(bus);
         self.reg.pc.wrapping_add(offset)
     }

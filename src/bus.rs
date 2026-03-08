@@ -37,13 +37,13 @@ pub struct BusSignals {
 /// and return the appropriate [`BusSignals`] to drive the CPU's interrupt lines.
 pub trait Bus {
     /// Read a byte from the given address.
-    fn read(&self, addr: u16) -> u8;
+    fn read(&mut self, addr: u16) -> u8;
 
     /// Write a byte to the given address.
     fn write(&mut self, addr: u16, val: u8);
 
     /// Read a big-endian 16-bit word (high byte at `addr`, low byte at `addr + 1`).
-    fn read_word(&self, addr: u16) -> u16 {
+    fn read_word(&mut self, addr: u16) -> u16 {
         let hi = self.read(addr) as u16;
         let lo = self.read(addr.wrapping_add(1)) as u16;
         (hi << 8) | lo

@@ -24,7 +24,7 @@ use crate::cpu::Cpu;
 ///
 /// Returns `(ea, extra_cycles)` where `extra_cycles` is the additional cycle
 /// count beyond the base instruction cycles.
-pub fn indexed(cpu: &mut Cpu, bus: &impl Bus) -> (u16, u8) {
+pub fn indexed(cpu: &mut Cpu, bus: &mut impl Bus) -> (u16, u8) {
     let post = cpu.fetch_byte(bus);
 
     // Bit 7 == 0: 5-bit signed offset from R, no indirection
