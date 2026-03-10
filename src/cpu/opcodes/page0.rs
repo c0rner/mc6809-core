@@ -127,7 +127,7 @@ pub fn execute(cpu: &mut Cpu, bus: &mut impl Bus, opcode: u8) {
             // Flags:
             // Z - set if the result is zero, otherwise cleared (the same as DEC)
             // N - set if the result is negative, otherwise cleared (the same as DEC)
-            // V - set if the operand is is 0x80, otherwise cleared (the same as DEC)
+            // V - set if the operand is 0x80, otherwise cleared (the same as DEC)
             // C - cleared if the operand is zero, otherwise set (different to DEC)
             // all other flags unchanged
             let addr = cpu.addr_direct(bus);
@@ -535,7 +535,7 @@ pub fn execute(cpu: &mut Cpu, bus: &mut impl Bus, opcode: u8) {
             // Flags:
             // Z - set if the result is zero, otherwise cleared (the same as DEC)
             // N - set if the result is negative, otherwise cleared (the same as DEC)
-            // V - set if the operand is is 0x80, otherwise cleared (the same as DEC)
+            // V - set if the operand is 0x80, otherwise cleared (the same as DEC)
             // C - cleared if the operand is zero, otherwise set (different to DEC)
             // all other flags unchanged
             let v = cpu.reg.a();
@@ -629,7 +629,7 @@ pub fn execute(cpu: &mut Cpu, bus: &mut impl Bus, opcode: u8) {
             // Flags:
             // Z - set if the result is zero, otherwise cleared (the same as DEC)
             // N - set if the result is negative, otherwise cleared (the same as DEC)
-            // V - set if the operand is is 0x80, otherwise cleared (the same as DEC)
+            // V - set if the operand is 0x80, otherwise cleared (the same as DEC)
             // C - cleared if the operand is zero, otherwise set (different to DEC)
             // all other flags unchanged
             let v = cpu.reg.b();
@@ -741,7 +741,7 @@ pub fn execute(cpu: &mut Cpu, bus: &mut impl Bus, opcode: u8) {
             // Flags:
             // Z - set if the result is zero, otherwise cleared (the same as DEC)
             // N - set if the result is negative, otherwise cleared (the same as DEC)
-            // V - set if the operand is is 0x80, otherwise cleared (the same as DEC)
+            // V - set if the operand is 0x80, otherwise cleared (the same as DEC)
             // C - cleared if the operand is zero, otherwise set (different to DEC)
             // all other flags unchanged
             let (addr, ex) = cpu.addr_indexed(bus);
@@ -850,7 +850,7 @@ pub fn execute(cpu: &mut Cpu, bus: &mut impl Bus, opcode: u8) {
             // Flags:
             // Z - set if the result is zero, otherwise cleared (the same as DEC)
             // N - set if the result is negative, otherwise cleared (the same as DEC)
-            // V - set if the operand is is 0x80, otherwise cleared (the same as DEC)
+            // V - set if the operand is 0x80, otherwise cleared (the same as DEC)
             // C - cleared if the operand is zero, otherwise set (different to DEC)
             // all other flags unchanged
             let addr = cpu.addr_extended(bus);
