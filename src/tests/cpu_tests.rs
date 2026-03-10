@@ -889,3 +889,471 @@ fn inc_direct() {
     cpu.step(&mut bus);
     assert_eq!(bus.mem[0x0050], 0x42);
 }
+
+// ===========================================================================
+// Undocumented opcodes
+// ===========================================================================
+
+// ---- XHCF: Halt and Catch Fire (0x14, 0x15, 0xCD) ----
+
+#[test]
+fn xhcf_0x14_halts_cpu() {
+    let (mut cpu, mut bus) = setup(&[0x14], 0x0400);
+    assert!(!cpu.halted);
+    cpu.step(&mut bus);
+    assert!(cpu.halted);
+}
+
+#[test]
+fn xhcf_0xcd_halts_cpu() {
+    let (mut cpu, mut bus) = setup(&[0xCD], 0x0400);
+    assert!(!cpu.halted);
+    cpu.step(&mut bus);
+    assert!(cpu.halted);
+}
+
+// ---- X18: undocumented flag rotate (0x18) ----
+
+#[test]
+fn x18_flag_transform() {
+    // ORCC #$FF then X18. After fetch of 0x18 PC = 0x0403; post-byte is 0xFF.
+    // With CC=0xFF and post=0xFF: post_cc=0xFF
+    //   E' = post_cc & CC_F(0x40) != 0 → true
+    //   F' = post_cc & CC_H(0x20) != 0 → true
+    //   H' = post_cc & CC_I(0x10) != 0 → true
+    //   I' = post_cc & CC_N(0x08) != 0 → true
+    //   N' = post_cc & CC_Z(0x04) != 0 → true
+    //   Z' = post_cc & CC_V(0x02) != 0 → true
+    //   V' = (post_cc & CC_C(0x01)) | (post_cc & CC_Z(0x04)) != 0 → true
+    //   C' = false
+    // Result CC = 0xFE (all set except C).
+    let (mut cpu, mut bus) = setup(
+        &[
+            0x1A, 0xFF, // ORCC #$FF → CC = 0xFF
+            0x18, // X18 (1-byte; reads post from PC+1 = 0x0403)
+            0xFF, // post byte
+        ],
+        0x0400,
+    );
+    cpu.step(&mut bus); // ORCC
+    assert_eq!(cpu.reg.cc.to_byte(), 0xFF);
+    cpu.step(&mut bus); // X18
+    assert_eq!(cpu.reg.cc.to_byte(), 0xFE); // C cleared, all others set
+    assert_eq!(cpu.reg.pc, 0x0403); // PC advanced past 0x18 only
+}
+
+// ---- XANDCC immediate (0x38) ----
+
+#[test]
+fn xandcc_undoc_0x38() {
+    // Clears all flags like ANDCC; uses the undocumented opcode 0x38.
+    let (mut cpu, mut bus) = setup(
+        &[
+            0x1A, 0xFF, // ORCC #$FF → all flags set
+            0x38, 0x00, // XANDCC #$00 → all flags cleared
+        ],
+        0x0400,
+    );
+    cpu.step(&mut bus);
+    assert_eq!(cpu.reg.cc.to_byte(), 0xFF);
+    cpu.step(&mut bus);
+    assert_eq!(cpu.reg.cc.to_byte(), 0x00);
+}
+
+// ---- RESET undocumented (0x3E) ----
+
+#[test]
+fn reset_undoc_0x3e_jumps_and_preserves_fi() {
+    // ANDCC #$AF clears F(0x40) and I(0x10) bits. Then RESET (0x3E) should
+    // NOT set them (unlike software RESET would).
+    let (mut cpu, mut bus) = setup(
+        &[
+            0x1C, 0xAF, // ANDCC #$AF → clear F and I
+            0x3E, // RESET undoc
+        ],
+        0x0400,
+    );
+    cpu.reg.s = 0x8000;
+    bus.mem[0xFFFE] = 0x10;
+    bus.mem[0xFFFF] = 0x00; // RESET vector → 0x1000
+    cpu.step(&mut bus); // ANDCC
+    assert!(!cpu.reg.cc.firq_inhibit());
+    assert!(!cpu.reg.cc.irq_inhibit());
+    cpu.step(&mut bus); // RESET undoc
+    assert_eq!(cpu.reg.pc, 0x1000);
+    assert!(!cpu.reg.cc.firq_inhibit()); // F not set by instruction
+    assert!(!cpu.reg.cc.irq_inhibit()); // I not set by instruction
+    assert_eq!(cpu.reg.s, 0x8000 - 12); // full 12-byte frame pushed
+    let saved_cc = bus.mem[cpu.reg.s as usize];
+    assert_eq!(saved_cc & 0x80, 0x00); // E was NOT set before push
+}
+
+// ---- XCLRA: CLR A but C unchanged (0x4E) ----
+
+#[test]
+fn xclra_undoc_zeroes_a_leaves_carry() {
+    let (mut cpu, mut bus) = setup(
+        &[
+            0x86, 0xFF, // LDA #$FF
+            0x1A, 0x01, // ORCC #$01 → set C
+            0x4E, // XCLRA
+        ],
+        0x0400,
+    );
+    cpu.step(&mut bus); // LDA #$FF
+    cpu.step(&mut bus); // ORCC — set C
+    cpu.step(&mut bus); // XCLRA
+    assert_eq!(cpu.reg.a(), 0x00);
+    assert!(cpu.reg.cc.zero());
+    assert!(!cpu.reg.cc.negative());
+    assert!(!cpu.reg.cc.overflow());
+    assert!(cpu.reg.cc.carry()); // C must remain set
+}
+
+// ---- XCLRB: CLR B but C unchanged (0x5E) ----
+
+#[test]
+fn xclrb_undoc_zeroes_b_leaves_carry() {
+    let (mut cpu, mut bus) = setup(
+        &[
+            0xC6, 0xAA, // LDB #$AA
+            0x1A, 0x01, // ORCC — set C
+            0x5E, // XCLRB
+        ],
+        0x0400,
+    );
+    cpu.step(&mut bus); // LDB
+    cpu.step(&mut bus); // ORCC
+    cpu.step(&mut bus); // XCLRB
+    assert_eq!(cpu.reg.b(), 0x00);
+    assert!(cpu.reg.cc.zero());
+    assert!(!cpu.reg.cc.negative());
+    assert!(!cpu.reg.cc.overflow());
+    assert!(cpu.reg.cc.carry()); // C unchanged
+}
+
+// ---- TFR / EXG mixed-size undocumented behaviour ----
+
+#[test]
+fn tfr_mixed_size_gives_0xff() {
+    // TFR B (8-bit, code=9) → X (16-bit, code=1): post-byte = 0x91
+    // Because sizes differ, X receives 0xFFFF (undocumented result).
+    let (mut cpu, mut bus) = setup(
+        &[
+            0xC6, 0x42, // LDB #$42
+            0x1F, 0x91, // TFR B,X
+        ],
+        0x0400,
+    );
+    cpu.step(&mut bus); // LDB
+    cpu.step(&mut bus); // TFR B,X
+    assert_eq!(cpu.reg.x, 0xFFFF);
+    assert_eq!(cpu.reg.b(), 0x42); // source unchanged
+}
+
+#[test]
+fn tfr_mixed_size_16_to_8_gives_ff() {
+    // TFR X (16-bit, code=1) → A (8-bit, code=8): post-byte = 0x18
+    // A receives 0xFF.
+    let (mut cpu, mut bus) = setup(
+        &[
+            0x8E, 0x12, 0x34, // LDX #$1234
+            0x1F, 0x18, // TFR X,A
+        ],
+        0x0400,
+    );
+    cpu.step(&mut bus); // LDX
+    cpu.step(&mut bus); // TFR X,A
+    assert_eq!(cpu.reg.a(), 0xFF);
+    assert_eq!(cpu.reg.x, 0x1234); // source unchanged
+}
+
+#[test]
+fn exg_mixed_size_both_get_ff() {
+    // EXG A (8-bit, code=8) ↔ X (16-bit, code=1): post-byte = 0x81
+    // Both A and X receive 0xFF / 0xFFFF respectively.
+    let (mut cpu, mut bus) = setup(
+        &[
+            0x86, 0x55, // LDA #$55
+            0x8E, 0x12, 0x34, // LDX #$1234
+            0x1E, 0x81, // EXG A,X
+        ],
+        0x0400,
+    );
+    cpu.step(&mut bus); // LDA
+    cpu.step(&mut bus); // LDX
+    cpu.step(&mut bus); // EXG A,X
+    assert_eq!(cpu.reg.a(), 0xFF);
+    assert_eq!(cpu.reg.x, 0xFFFF);
+}
+
+// ---- Undocumented SWI2 (0x10 0x3E): does not set E before pushing ----
+
+#[test]
+fn swi2_undoc_page1_no_e_flag_in_frame() {
+    let (mut cpu, mut bus) = setup(
+        &[
+            0x1C, 0x7F, // ANDCC #$7F → clear E
+            0x10, 0x3E, // SWI2 undocumented
+        ],
+        0x0400,
+    );
+    cpu.reg.s = 0x8000;
+    bus.mem[0xFFF4] = 0x20;
+    bus.mem[0xFFF5] = 0x00; // SWI2 vector → 0x2000
+    cpu.step(&mut bus); // ANDCC — E clear
+    cpu.step(&mut bus); // SWI2 undoc
+    assert_eq!(cpu.reg.pc, 0x2000);
+    assert_eq!(cpu.reg.s, 0x8000 - 12);
+    let saved_cc = bus.mem[cpu.reg.s as usize];
+    assert_eq!(saved_cc & 0x80, 0x00); // E was NOT set before push
+}
+
+// ---- XFIRQ (0x11 0x3E): push state, jump via FIRQ vector, no flag changes ----
+
+#[test]
+fn xfirq_undoc_jumps_via_firq_vector_no_flag_changes() {
+    let (mut cpu, mut bus) = setup(
+        &[
+            0x1C, 0xAF, // ANDCC #$AF → clear F and I
+            0x11, 0x3E, // XFIRQ
+        ],
+        0x0400,
+    );
+    cpu.reg.s = 0x8000;
+    bus.mem[0xFFF6] = 0x30;
+    bus.mem[0xFFF7] = 0x00; // FIRQ vector → 0x3000
+    cpu.step(&mut bus); // ANDCC
+    assert!(!cpu.reg.cc.firq_inhibit());
+    assert!(!cpu.reg.cc.irq_inhibit());
+    cpu.step(&mut bus); // XFIRQ
+    assert_eq!(cpu.reg.pc, 0x3000);
+    assert!(!cpu.reg.cc.firq_inhibit()); // F still clear
+    assert!(!cpu.reg.cc.irq_inhibit()); // I still clear
+    assert_eq!(cpu.reg.s, 0x8000 - 12); // full state pushed
+}
+
+// ---- XNC: NEG if C=0, COM if C=1 ----
+
+#[test]
+fn xnc_a_carry_clear_acts_as_nega() {
+    // 0x42: XNC A — C=0 → behaves like NEGA
+    let (mut cpu, mut bus) = setup(
+        &[
+            0x86, 0x05, // LDA #$05
+            0x1C, 0xFE, // ANDCC #$FE → clear C
+            0x42, // XNC A
+        ],
+        0x0400,
+    );
+    cpu.step(&mut bus);
+    cpu.step(&mut bus);
+    cpu.step(&mut bus);
+    assert_eq!(cpu.reg.a(), 0xFB); // neg(0x05) = 0xFB (two's complement)
+    assert!(cpu.reg.cc.carry()); // neg of non-zero sets C
+}
+
+#[test]
+fn xnc_a_carry_set_acts_as_coma() {
+    // 0x42: XNC A — C=1 → behaves like COMA
+    let (mut cpu, mut bus) = setup(
+        &[
+            0x86, 0xAA, // LDA #$AA
+            0x1A, 0x01, // ORCC #$01 → set C
+            0x42, // XNC A
+        ],
+        0x0400,
+    );
+    cpu.step(&mut bus);
+    cpu.step(&mut bus);
+    cpu.step(&mut bus);
+    assert_eq!(cpu.reg.a(), 0x55); // ~$AA = $55
+    assert!(cpu.reg.cc.carry()); // COM always sets C
+}
+
+#[test]
+fn xnc_b_carry_clear_acts_as_negb() {
+    // 0x52: XNC B — C=0 → behaves like NEGB
+    let (mut cpu, mut bus) = setup(
+        &[
+            0xC6, 0x01, // LDB #$01
+            0x1C, 0xFE, // ANDCC #$FE → clear C
+            0x52, // XNC B
+        ],
+        0x0400,
+    );
+    cpu.step(&mut bus);
+    cpu.step(&mut bus);
+    cpu.step(&mut bus);
+    assert_eq!(cpu.reg.b(), 0xFF);
+}
+
+#[test]
+fn xnc_direct_carry_set_acts_as_com() {
+    // 0x02: XNC direct — C=1 → behaves like COM
+    let (mut cpu, mut bus) = setup(
+        &[
+            0x1A, 0x01, // ORCC #$01 → set C
+            0x02, 0x50, // XNC <$50
+        ],
+        0x0400,
+    );
+    bus.mem[0x0050] = 0x0F;
+    cpu.step(&mut bus);
+    cpu.step(&mut bus);
+    assert_eq!(bus.mem[0x0050], 0xF0); // ~0x0F = 0xF0
+}
+
+// ---- XDEC: DEC but C reflects (original != 0) ----
+
+#[test]
+fn xdec_a_nonzero_sets_carry() {
+    // 0x4B: XDEC A — operand=3 → result=2, C=1 (3 != 0)
+    let (mut cpu, mut bus) = setup(
+        &[
+            0x86, 0x03, // LDA #$03
+            0x1C, 0xFE, // ANDCC #$FE → clear C
+            0x4B, // XDEC A
+        ],
+        0x0400,
+    );
+    cpu.step(&mut bus);
+    cpu.step(&mut bus);
+    cpu.step(&mut bus);
+    assert_eq!(cpu.reg.a(), 0x02);
+    assert!(cpu.reg.cc.carry()); // 3 != 0 → C set
+}
+
+#[test]
+fn xdec_a_zero_clears_carry() {
+    // 0x4B: XDEC A — operand=0 → result=0xFF, C=0 (0 == 0)
+    let (mut cpu, mut bus) = setup(
+        &[
+            0x86, 0x00, // LDA #$00
+            0x1A, 0x01, // ORCC #$01 → set C (to verify it gets cleared)
+            0x4B, // XDEC A
+        ],
+        0x0400,
+    );
+    cpu.step(&mut bus);
+    cpu.step(&mut bus);
+    cpu.step(&mut bus);
+    assert_eq!(cpu.reg.a(), 0xFF);
+    assert!(!cpu.reg.cc.carry()); // 0 == 0 → C cleared
+    assert!(cpu.reg.cc.negative()); // 0xFF is negative
+}
+
+#[test]
+fn xdec_b_nonzero_sets_carry() {
+    // 0x5B: XDEC B — operand=0x80 → result=0x7F, V set, C set (0x80 != 0)
+    let (mut cpu, mut bus) = setup(
+        &[
+            0xC6, 0x80, // LDB #$80
+            0x1C, 0xFE, // ANDCC #$FE → clear C
+            0x5B, // XDEC B
+        ],
+        0x0400,
+    );
+    cpu.step(&mut bus);
+    cpu.step(&mut bus);
+    cpu.step(&mut bus);
+    assert_eq!(cpu.reg.b(), 0x7F);
+    assert!(cpu.reg.cc.overflow()); // 0x80 → V set (same as DEC)
+    assert!(cpu.reg.cc.carry()); // 0x80 != 0 → C set
+}
+
+#[test]
+fn xdec_direct_zero_clears_carry() {
+    // 0x0B: XDEC direct — operand=0 → carry cleared
+    let (mut cpu, mut bus) = setup(
+        &[
+            0x1A, 0x01, // ORCC #$01 → set C
+            0x0B, 0x50, // XDEC <$50
+        ],
+        0x0400,
+    );
+    bus.mem[0x0050] = 0x00;
+    cpu.step(&mut bus);
+    cpu.step(&mut bus);
+    assert_eq!(bus.mem[0x0050], 0xFF);
+    assert!(!cpu.reg.cc.carry()); // 0 == 0 → C cleared
+}
+
+// ---- XADDD (page 1, 0x10 0xC3 / 0xD3): sets flags like ADDD, result discarded ----
+
+#[test]
+fn xaddd_imm_sets_flags_discards_result() {
+    // XADDD #$0001 with D=$FFFF should set C and Z (wraps to 0x0000).
+    let (mut cpu, mut bus) = setup(
+        &[
+            0xCC, 0xFF, 0xFF, // LDD #$FFFF
+            0x10, 0xC3, 0x00, 0x01, // XADDD #$0001
+        ],
+        0x0400,
+    );
+    cpu.step(&mut bus); // LDD
+    cpu.step(&mut bus); // XADDD imm
+    assert_eq!(cpu.reg.d, 0xFFFF); // D unchanged
+    assert!(cpu.reg.cc.carry()); // overflow into carry
+    assert!(cpu.reg.cc.zero()); // result would be 0
+}
+
+#[test]
+fn xaddd_direct_sets_flags_discards_result() {
+    // XADDD <$50 with D=$1000 and mem[$50]=$0234 → result 0x1234, no C/Z.
+    let (mut cpu, mut bus) = setup(
+        &[
+            0xCC, 0x10, 0x00, // LDD #$1000
+            0x10, 0xD3, 0x50, // XADDD <$50
+        ],
+        0x0400,
+    );
+    bus.mem[0x0050] = 0x02;
+    bus.mem[0x0051] = 0x34;
+    cpu.step(&mut bus); // LDD
+    cpu.step(&mut bus); // XADDD direct
+    assert_eq!(cpu.reg.d, 0x1000); // D unchanged
+    assert!(!cpu.reg.cc.carry());
+    assert!(!cpu.reg.cc.zero());
+    assert!(!cpu.reg.cc.negative()); // 0x1234 is positive
+}
+
+// ---- XADDU (page 2, 0x11 0xC3 / 0xD3): adds (U | 0xFF00) with operand ----
+
+#[test]
+fn xaddu_imm_sets_flags_discards_result() {
+    // U=$0000, so (U | 0xFF00) = 0xFF00. XADDU #$0100 → 0xFF00 + 0x0100 = 0x0000 + carry.
+    let (mut cpu, mut bus) = setup(
+        &[
+            0xCE, 0x00, 0x00, // LDU #$0000
+            0x11, 0xC3, 0x01, 0x00, // XADDU #$0100
+        ],
+        0x0400,
+    );
+    cpu.reg.s = 0x8100; // arm NMI safely
+    cpu.step(&mut bus); // LDU
+    cpu.step(&mut bus); // XADDU imm
+    assert_eq!(cpu.reg.u, 0x0000); // U unchanged
+    assert!(cpu.reg.cc.carry()); // 0xFF00 + 0x0100 overflows
+    assert!(cpu.reg.cc.zero()); // result is 0x0000
+}
+
+#[test]
+fn xaddu_direct_sets_flags_discards_result() {
+    // U=$00FF → (U | 0xFF00) = 0xFFFF. XADDU <$50 = $0001 → 0xFFFF + 0x0001 = 0x0000 + C.
+    let (mut cpu, mut bus) = setup(
+        &[
+            0xCE, 0x00, 0xFF, // LDU #$00FF
+            0x11, 0xD3, 0x50, // XADDU <$50
+        ],
+        0x0400,
+    );
+    cpu.reg.s = 0x8100;
+    bus.mem[0x0050] = 0x00;
+    bus.mem[0x0051] = 0x01;
+    cpu.step(&mut bus); // LDU
+    cpu.step(&mut bus); // XADDU direct
+    assert_eq!(cpu.reg.u, 0x00FF); // U unchanged
+    assert!(cpu.reg.cc.carry());
+    assert!(cpu.reg.cc.zero());
+}
