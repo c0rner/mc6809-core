@@ -150,14 +150,14 @@ pub fn execute(cpu: &mut Cpu, bus: &mut impl Bus, opcode: u8) {
             let (addr, ex) = cpu.addr_indexed(bus);
             cpu.cycles += ex as u64;
             let v = bus.read_word(addr);
-            let u = cpu.reg.u;
+            let u = cpu.reg.u | 0xFF00;
             let _r = alu::add16(u, v, &mut cpu.reg.cc);
         }
         0xF3 => {
             // XADDU extended
             let addr = cpu.addr_extended(bus);
             let v = bus.read_word(addr);
-            let u = cpu.reg.u;
+            let u = cpu.reg.u | 0xFF00;
             let _r = alu::add16(u, v, &mut cpu.reg.cc);
         }
 
