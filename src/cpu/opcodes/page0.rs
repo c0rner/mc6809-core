@@ -196,7 +196,7 @@ pub fn execute(cpu: &mut Cpu, bus: &mut impl Bus, opcode: u8) {
             // Z' = (V & B1)
             // V' = (C & B0) | (Z & B2)
             // C' = 0
-            let post = cpu.fetch_byte(bus);
+            let post = bus.read(cpu.reg.pc);
             let cc = cpu.reg.cc.to_byte();
             let post_cc = cc & post;
             cpu.reg.cc.set_entire(post_cc & CC_F != 0);
