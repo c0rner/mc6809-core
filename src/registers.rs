@@ -19,14 +19,14 @@ use std::fmt;
 // ---------------------------------------------------------------------------
 
 /// Bit positions in the CC register.
-const CC_C: u8 = 0x01; // Carry
-const CC_V: u8 = 0x02; // Overflow
-const CC_Z: u8 = 0x04; // Zero
-const CC_N: u8 = 0x08; // Negative
-const CC_I: u8 = 0x10; // IRQ inhibit
-const CC_H: u8 = 0x20; // Half-carry
-const CC_F: u8 = 0x40; // FIRQ inhibit
-const CC_E: u8 = 0x80; // Entire state saved
+pub(crate) const CC_C: u8 = 0x01; // Carry
+pub(crate) const CC_V: u8 = 0x02; // Overflow
+pub(crate) const CC_Z: u8 = 0x04; // Zero
+pub(crate) const CC_N: u8 = 0x08; // Negative
+pub(crate) const CC_I: u8 = 0x10; // IRQ inhibit
+pub(crate) const CC_H: u8 = 0x20; // Half-carry
+pub(crate) const CC_F: u8 = 0x40; // FIRQ inhibit
+pub(crate) const CC_E: u8 = 0x80; // Entire state saved
 
 /// The 6809 Condition Code register, stored as a packed byte.
 #[derive(Clone, Copy, Default, PartialEq, Eq)]

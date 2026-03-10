@@ -15,6 +15,8 @@
 //! Page 1 opcode implementations (prefix 0x10).
 //!
 //! Contains: long conditional branches, SWI2, CMPD, CMPY, LDY, STY, LDS, STS.
+//! Contains all undocumented page 1 opcodes except all store immediate,
+//! source: https://github.com/hoglet67/6809Decoder/wiki/Undocumented-6809-Behaviours
 
 use crate::alu;
 use crate::bus::Bus;
@@ -26,10 +28,11 @@ const PAGE1_CYCLES: [u8; 256] = {
     let mut t = [0u8; 256];
     // Long branches: 5 cycles (not taken), 6 cycles (taken).
     // We charge 5 base and add 1 if taken.
-    t[0x21] = 5; t[0x22] = 5; t[0x23] = 5; t[0x24] = 5;
-    t[0x25] = 5; t[0x26] = 5; t[0x27] = 5; t[0x28] = 5;
-    t[0x29] = 5; t[0x2A] = 5; t[0x2B] = 5; t[0x2C] = 5;
-    t[0x2D] = 5; t[0x2E] = 5; t[0x2F] = 5;
+    t[0x20] = 5; t[0x21] = 5; t[0x22] = 5; t[0x23] = 5;
+    t[0x24] = 5; t[0x25] = 5; t[0x26] = 5; t[0x27] = 5;
+    t[0x28] = 5; t[0x29] = 5; t[0x2A] = 5; t[0x2B] = 5;
+    t[0x2C] = 5; t[0x2D] = 5; t[0x2E] = 5; t[0x2F] = 5;
+    t[0x3E] = 20; // SWI2 (undocumented)
     t[0x3F] = 20; // SWI2
     t[0x83] = 5;  // CMPD imm
     t[0x8C] = 5;  // CMPY imm
@@ -46,11 +49,15 @@ const PAGE1_CYCLES: [u8; 256] = {
     t[0xBC] = 8;  // CMPY extended
     t[0xBE] = 7;  // LDY extended
     t[0xBF] = 7;  // STY extended
+    t[0xC3] = 5;  // XADDD imm
     t[0xCE] = 4;  // LDS imm
+    t[0xD3] = 7;  // XADDD direct
     t[0xDE] = 6;  // LDS direct
     t[0xDF] = 6;  // STS direct
+    t[0xE3] = 7;  // XADDD indexed
     t[0xEE] = 6;  // LDS indexed
     t[0xEF] = 6;  // STS indexed
+    t[0xF3] = 8;  // XADDD extended
     t[0xFE] = 7;  // LDS extended
     t[0xFF] = 7;  // STS extended
     t
@@ -63,6 +70,11 @@ pub fn execute(cpu: &mut Cpu, bus: &mut impl Bus, opcode: u8) {
         // =================================================================
         // Long conditional branches (16-bit relative offset)
         // =================================================================
+        0x20 => {
+            // LXBRA
+            let addr = cpu.addr_relative16(bus);
+            cpu.reg.pc = addr;
+        }
         0x21 => {
             // LBRN
             let _addr = cpu.addr_relative16(bus);
@@ -183,6 +195,12 @@ pub fn execute(cpu: &mut Cpu, bus: &mut impl Bus, opcode: u8) {
         // =================================================================
         // SWI2
         // =================================================================
+        0x3E => {
+            // SWi2 (undocumented)
+            // Does not set E, I or F flags
+            cpu.push_entire_state(bus);
+            cpu.reg.pc = bus.read_word(crate::cpu::VEC_SWI2);
+        }
         0x3F => {
             cpu.reg.cc.set_entire(true);
             cpu.push_entire_state(bus);
@@ -296,11 +314,26 @@ pub fn execute(cpu: &mut Cpu, bus: &mut impl Bus, opcode: u8) {
         // =================================================================
         // LDS / STS
         // =================================================================
+        0xC3 => {
+            // XADDD imm (undocumented)
+            // XADDD performs a 16-bit addition of the operand with D, and
+            // sets the Z,N,C,V flags in an identical manner to ADDD. The
+            // result is, however, not written back to D.
+            let v = cpu.fetch_word(bus);
+            let d = cpu.reg.d;
+            let _r = alu::add16(d, v, &mut cpu.reg.cc);
+        }
         0xCE => {
             let v = cpu.fetch_word(bus);
             alu::ld16_flags(v, &mut cpu.reg.cc);
             cpu.reg.s = v;
             cpu.arm_nmi();
+        }
+        0xD3 => {
+            let addr = cpu.addr_direct(bus);
+            let v = bus.read_word(addr);
+            let d = cpu.reg.d;
+            let _r = alu::add16(d, v, &mut cpu.reg.cc);
         }
         0xDE => {
             let addr = cpu.addr_direct(bus);
@@ -314,6 +347,13 @@ pub fn execute(cpu: &mut Cpu, bus: &mut impl Bus, opcode: u8) {
             let v = cpu.reg.s;
             alu::ld16_flags(v, &mut cpu.reg.cc);
             bus.write_word(addr, v);
+        }
+        0xE3 => {
+            let (addr, ex) = cpu.addr_indexed(bus);
+            cpu.cycles += ex as u64;
+            let v = bus.read_word(addr);
+            let d = cpu.reg.d;
+            let _r = alu::add16(d, v, &mut cpu.reg.cc);
         }
         0xEE => {
             let (addr, ex) = cpu.addr_indexed(bus);
@@ -329,6 +369,12 @@ pub fn execute(cpu: &mut Cpu, bus: &mut impl Bus, opcode: u8) {
             let v = cpu.reg.s;
             alu::ld16_flags(v, &mut cpu.reg.cc);
             bus.write_word(addr, v);
+        }
+        0xF3 => {
+            let addr = cpu.addr_extended(bus);
+            let v = bus.read_word(addr);
+            let d = cpu.reg.d;
+            let _r = alu::add16(d, v, &mut cpu.reg.cc);
         }
         0xFE => {
             let addr = cpu.addr_extended(bus);

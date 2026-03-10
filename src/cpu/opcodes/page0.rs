@@ -13,10 +13,13 @@
 //   limitations under the License.
 
 //! Page 0 opcode implementations (0x00..0xFF, excluding 0x10/0x11 page prefixes).
+//! Contains all undocumented page 0 opcodes except all store immediate,
+//! source: https://github.com/hoglet67/6809Decoder/wiki/Undocumented-6809-Behaviours
 
 use crate::alu;
 use crate::bus::Bus;
 use crate::cpu::Cpu;
+use crate::registers::{CC_C, CC_F, CC_H, CC_I, CC_N, CC_V, CC_Z};
 
 /// Base cycle counts for Page 0 opcodes (0x00..0xFF).
 /// Indexed-mode entries show the *base* cycles; extra cycles from the
@@ -24,14 +27,14 @@ use crate::cpu::Cpu;
 #[rustfmt::skip]
 const PAGE0_CYCLES: [u8; 256] = [
 //  0   1   2   3   4   5   6   7   8   9   A   B   C   D   E   F
-    6,  1,  1,  6,  6,  1,  6,  6,  6,  6,  6,  1,  6,  6,  3,  6, // 0x
-    1,  1,  2,  2,  1,  1,  5,  9,  1,  2,  3,  1,  3,  2,  8,  7, // 1x (10,11 = page prefix)
+    6,  6,  6,  6,  6,  6,  6,  6,  6,  6,  6,  6,  6,  6,  3,  6, // 0x
+    1,  1,  2,  2,  1,  1,  5,  9,  3,  2,  3,  2,  3,  2,  8,  7, // 1x (10,11 = page prefix)
     3,  3,  3,  3,  3,  3,  3,  3,  3,  3,  3,  3,  3,  3,  3,  3, // 2x
-    4,  4,  4,  4,  5,  5,  5,  5,  1,  5,  3,  6, 21, 11,  1, 19, // 3x
-    2,  1,  1,  2,  2,  1,  2,  2,  2,  2,  2,  1,  2,  2,  1,  2, // 4x
-    2,  1,  1,  2,  2,  1,  2,  2,  2,  2,  2,  1,  2,  2,  1,  2, // 5x
-    6,  1,  1,  6,  6,  1,  6,  6,  6,  6,  6,  1,  6,  6,  3,  6, // 6x
-    7,  1,  1,  7,  7,  1,  7,  7,  7,  7,  7,  1,  7,  7,  4,  7, // 7x
+    4,  4,  4,  4,  5,  5,  5,  5,  4,  5,  3,  6, 21, 11, 19, 19, // 3x
+    2,  1,  1,  2,  2,  2,  2,  2,  2,  2,  2,  2,  2,  2,  1,  2, // 4x
+    2,  1,  1,  2,  2,  2,  2,  2,  2,  2,  2,  2,  2,  2,  1,  2, // 5x
+    6,  1,  1,  6,  6,  6,  6,  6,  6,  6,  6,  6,  6,  6,  3,  6, // 6x
+    7,  1,  1,  7,  7,  7,  7,  7,  7,  7,  7,  7,  7,  7,  4,  7, // 7x
     2,  2,  2,  4,  2,  2,  2,  1,  2,  2,  2,  2,  4,  7,  3,  1, // 8x
     4,  4,  4,  6,  4,  4,  4,  4,  4,  4,  4,  4,  6,  7,  5,  5, // 9x
     4,  4,  4,  6,  4,  4,  4,  4,  4,  4,  4,  4,  6,  7,  5,  5, // Ax
@@ -54,6 +57,18 @@ pub fn execute(cpu: &mut Cpu, bus: &mut impl Bus, opcode: u8) {
             let addr = cpu.addr_direct(bus);
             let val = bus.read(addr);
             let r = alu::neg8(val, &mut cpu.reg.cc);
+            bus.write(addr, r);
+        }
+        0x02 => {
+            // XNC direct (undocumented)
+            // This instruction behaves like NEG if C=0 or COM if C=1
+            let addr = cpu.addr_direct(bus);
+            let val = bus.read(addr);
+            let r = if cpu.reg.cc.carry() {
+                alu::com8(val, &mut cpu.reg.cc)
+            } else {
+                alu::neg8(val, &mut cpu.reg.cc)
+            };
             bus.write(addr, r);
         }
         0x03 => {
@@ -105,6 +120,22 @@ pub fn execute(cpu: &mut Cpu, bus: &mut impl Bus, opcode: u8) {
             let r = alu::dec8(val, &mut cpu.reg.cc);
             bus.write(addr, r);
         }
+        0x0B => {
+            // XDEC direct (undocumented)
+            // This instruction is similar to DEC instruction, except that
+            // the carry flag is modified.
+            // Flags:
+            // Z - set if the result is zero, otherwise cleared (the same as DEC)
+            // N - set if the result is negative, otherwise cleared (the same as DEC)
+            // V - set if the operand is is 0x80, otherwise cleared (the same as DEC)
+            // C - cleared if the operand is zero, otherwise set (different to DEC)
+            // all other flags unchanged
+            let addr = cpu.addr_direct(bus);
+            let val = bus.read(addr);
+            let r = alu::dec8(val, &mut cpu.reg.cc);
+            cpu.reg.cc.set_carry(val != 0);
+            bus.write(addr, r);
+        }
         0x0C => {
             // INC direct
             let addr = cpu.addr_direct(bus);
@@ -137,6 +168,10 @@ pub fn execute(cpu: &mut Cpu, bus: &mut impl Bus, opcode: u8) {
             // SYNC
             cpu.sync = true;
         }
+        0x14 | 0x15 => {
+            // XHCF Halt and Catch Fire (undocumented)
+            cpu.halted = true;
+        }
         0x16 => {
             // LBRA
             let addr = cpu.addr_relative16(bus);
@@ -147,6 +182,33 @@ pub fn execute(cpu: &mut Cpu, bus: &mut impl Bus, opcode: u8) {
             let addr = cpu.addr_relative16(bus);
             cpu.push_word_s(bus, cpu.reg.pc);
             cpu.reg.pc = addr;
+        }
+        0x18 => {
+            // X18 undocumented
+            // This instruction updates the flags where Bn is
+            // bit n of the byte at PC + 1 (the next opcode)
+            // Flags:
+            // E' = (F & B6)
+            // F' = (H & B5)
+            // H' = (I & B4)
+            // I' = (N & B3)
+            // N' = (Z & B2)
+            // Z' = (V & B1)
+            // V' = (C & B0) | (Z & B2)
+            // C' = 0
+            let post = cpu.fetch_byte(bus);
+            let cc = cpu.reg.cc.to_byte();
+            let post_cc = cc & post;
+            cpu.reg.cc.set_entire(post_cc & CC_F != 0);
+            cpu.reg.cc.set_firq_inhibit(post_cc & CC_H != 0);
+            cpu.reg.cc.set_half_carry(post_cc & CC_I != 0);
+            cpu.reg.cc.set_irq_inhibit(post_cc & CC_N != 0);
+            cpu.reg.cc.set_negative(post_cc & CC_Z != 0);
+            cpu.reg.cc.set_zero(post_cc & CC_V != 0);
+            cpu.reg
+                .cc
+                .set_overflow((post_cc & CC_C) | (post_cc & CC_Z) != 0);
+            cpu.reg.cc.set_carry(false);
         }
         0x19 => {
             // DAA
@@ -159,6 +221,7 @@ pub fn execute(cpu: &mut Cpu, bus: &mut impl Bus, opcode: u8) {
             let val = cpu.fetch_byte(bus);
             cpu.reg.cc.or_with(val);
         }
+        0x1B => {} // NOP (undocumented)
         0x1C => {
             // ANDCC immediate
             let val = cpu.fetch_byte(bus);
@@ -343,6 +406,11 @@ pub fn execute(cpu: &mut Cpu, bus: &mut impl Bus, opcode: u8) {
             let post = cpu.fetch_byte(bus);
             pulu(cpu, bus, post);
         }
+        0x38 => {
+            // XANDCC immediate (undocumented)
+            let val = cpu.fetch_byte(bus);
+            cpu.reg.cc.and_with(val);
+        }
         0x39 => {
             // RTS
             cpu.reg.pc = cpu.pull_word_s(bus);
@@ -386,7 +454,14 @@ pub fn execute(cpu: &mut Cpu, bus: &mut impl Bus, opcode: u8) {
         }
         0x3E => {
             // RESET (undocumented)
-            cpu.halted = true;
+            // This instruction is similar to SWI (0x3F), except the
+            // RESET vector (0xFFFE/F) is used to determine the next
+            // PC value, and it does not correctly set the E flag in
+            // the saved machine state.
+            // Flags: all flags are unchanged
+            // Note: unlike a hardware RESET, the F and I flags are not set.
+            cpu.push_entire_state(bus);
+            cpu.reg.pc = bus.read_word(crate::cpu::VEC_RESET);
         }
         0x3F => {
             // SWI
@@ -404,6 +479,17 @@ pub fn execute(cpu: &mut Cpu, bus: &mut impl Bus, opcode: u8) {
             // NEGA (0x40) and (0x41, undoc)
             let v = cpu.reg.a();
             let r = alu::neg8(v, &mut cpu.reg.cc);
+            cpu.reg.set_a(r);
+        }
+        0x42 => {
+            // XNC A (undocumented)
+            // This instruction behaves like NEGA if C=0 or COMA if C=1
+            let v = cpu.reg.a();
+            let r = if cpu.reg.cc.carry() {
+                alu::com8(v, &mut cpu.reg.cc)
+            } else {
+                alu::neg8(v, &mut cpu.reg.cc)
+            };
             cpu.reg.set_a(r);
         }
         0x43 => {
@@ -442,6 +528,21 @@ pub fn execute(cpu: &mut Cpu, bus: &mut impl Bus, opcode: u8) {
             let r = alu::dec8(v, &mut cpu.reg.cc);
             cpu.reg.set_a(r);
         }
+        0x4B => {
+            // XDEC A (undocumented)
+            // This instruction is similar to DEC instruction, except that
+            // the carry flag is modified.
+            // Flags:
+            // Z - set if the result is zero, otherwise cleared (the same as DEC)
+            // N - set if the result is negative, otherwise cleared (the same as DEC)
+            // V - set if the operand is is 0x80, otherwise cleared (the same as DEC)
+            // C - cleared if the operand is zero, otherwise set (different to DEC)
+            // all other flags unchanged
+            let v = cpu.reg.a();
+            let r = alu::dec8(v, &mut cpu.reg.cc);
+            cpu.reg.cc.set_carry(v != 0);
+            cpu.reg.set_a(r);
+        }
         0x4C => {
             let v = cpu.reg.a();
             let r = alu::inc8(v, &mut cpu.reg.cc);
@@ -450,6 +551,14 @@ pub fn execute(cpu: &mut Cpu, bus: &mut impl Bus, opcode: u8) {
         0x4D => {
             let v = cpu.reg.a();
             alu::tst8(v, &mut cpu.reg.cc);
+        }
+        0x4E => {
+            // XCLRA (undocumented)
+            // This instruction is similar to CLRA/B, except the C flag is unchanged.
+            cpu.reg.cc.set_negative(false);
+            cpu.reg.cc.set_zero(true);
+            cpu.reg.cc.set_overflow(false);
+            cpu.reg.set_a(0);
         }
         0x4F => {
             // CLRA
@@ -464,6 +573,17 @@ pub fn execute(cpu: &mut Cpu, bus: &mut impl Bus, opcode: u8) {
             // NEGB (0x50) and (0x51, undoc)
             let v = cpu.reg.b();
             let r = alu::neg8(v, &mut cpu.reg.cc);
+            cpu.reg.set_b(r);
+        }
+        0x52 => {
+            // XNC B (undocumented)
+            // This instruction behaves like NEGB if C=0 or COMB if C=1
+            let v = cpu.reg.b();
+            let r = if cpu.reg.cc.carry() {
+                alu::com8(v, &mut cpu.reg.cc)
+            } else {
+                alu::neg8(v, &mut cpu.reg.cc)
+            };
             cpu.reg.set_b(r);
         }
         0x53 => {
@@ -502,6 +622,21 @@ pub fn execute(cpu: &mut Cpu, bus: &mut impl Bus, opcode: u8) {
             let r = alu::dec8(v, &mut cpu.reg.cc);
             cpu.reg.set_b(r);
         }
+        0x5B => {
+            // XDEC B (undocumented)
+            // This instruction is similar to DEC instruction, except that
+            // the carry flag is modified.
+            // Flags:
+            // Z - set if the result is zero, otherwise cleared (the same as DEC)
+            // N - set if the result is negative, otherwise cleared (the same as DEC)
+            // V - set if the operand is is 0x80, otherwise cleared (the same as DEC)
+            // C - cleared if the operand is zero, otherwise set (different to DEC)
+            // all other flags unchanged
+            let v = cpu.reg.b();
+            let r = alu::dec8(v, &mut cpu.reg.cc);
+            cpu.reg.cc.set_carry(v != 0);
+            cpu.reg.set_b(r);
+        }
         0x5C => {
             let v = cpu.reg.b();
             let r = alu::inc8(v, &mut cpu.reg.cc);
@@ -510,6 +645,14 @@ pub fn execute(cpu: &mut Cpu, bus: &mut impl Bus, opcode: u8) {
         0x5D => {
             let v = cpu.reg.b();
             alu::tst8(v, &mut cpu.reg.cc);
+        }
+        0x5E => {
+            // XCLRB (undocumented)
+            // This instruction is similar to CLRA/B, except the C flag is unchanged.
+            cpu.reg.cc.set_negative(false);
+            cpu.reg.cc.set_zero(true);
+            cpu.reg.cc.set_overflow(false);
+            cpu.reg.set_b(0);
         }
         0x5F => {
             // CLRB
@@ -526,6 +669,19 @@ pub fn execute(cpu: &mut Cpu, bus: &mut impl Bus, opcode: u8) {
             cpu.cycles += ex as u64;
             let val = bus.read(addr);
             let r = alu::neg8(val, &mut cpu.reg.cc);
+            bus.write(addr, r);
+        }
+        0x62 => {
+            // XNC indexed (undocumented)
+            // This instruction behaves like NEG if C=0 or COM if C=1
+            let (addr, ex) = cpu.addr_indexed(bus);
+            cpu.cycles += ex as u64;
+            let val = bus.read(addr);
+            let r = if cpu.reg.cc.carry() {
+                alu::com8(val, &mut cpu.reg.cc)
+            } else {
+                alu::neg8(val, &mut cpu.reg.cc)
+            };
             bus.write(addr, r);
         }
         0x63 => {
@@ -578,6 +734,23 @@ pub fn execute(cpu: &mut Cpu, bus: &mut impl Bus, opcode: u8) {
             let r = alu::dec8(val, &mut cpu.reg.cc);
             bus.write(addr, r);
         }
+        0x6B => {
+            // XDEC indexed (undocumented)
+            // This instruction is similar to DEC instruction, except that
+            // the carry flag is modified.
+            // Flags:
+            // Z - set if the result is zero, otherwise cleared (the same as DEC)
+            // N - set if the result is negative, otherwise cleared (the same as DEC)
+            // V - set if the operand is is 0x80, otherwise cleared (the same as DEC)
+            // C - cleared if the operand is zero, otherwise set (different to DEC)
+            // all other flags unchanged
+            let (addr, ex) = cpu.addr_indexed(bus);
+            cpu.cycles += ex as u64;
+            let val = bus.read(addr);
+            let r = alu::dec8(val, &mut cpu.reg.cc);
+            cpu.reg.cc.set_carry(val != 0);
+            bus.write(addr, r);
+        }
         0x6C => {
             let (addr, ex) = cpu.addr_indexed(bus);
             cpu.cycles += ex as u64;
@@ -613,6 +786,18 @@ pub fn execute(cpu: &mut Cpu, bus: &mut impl Bus, opcode: u8) {
             let addr = cpu.addr_extended(bus);
             let val = bus.read(addr);
             let r = alu::neg8(val, &mut cpu.reg.cc);
+            bus.write(addr, r);
+        }
+        0x72 => {
+            // XNC extended (undocumented)
+            // This instruction behaves like NEG if C=0 or COM if C=1
+            let addr = cpu.addr_extended(bus);
+            let val = bus.read(addr);
+            let r = if cpu.reg.cc.carry() {
+                alu::com8(val, &mut cpu.reg.cc)
+            } else {
+                alu::neg8(val, &mut cpu.reg.cc)
+            };
             bus.write(addr, r);
         }
         0x73 => {
@@ -656,6 +841,22 @@ pub fn execute(cpu: &mut Cpu, bus: &mut impl Bus, opcode: u8) {
             let addr = cpu.addr_extended(bus);
             let val = bus.read(addr);
             let r = alu::dec8(val, &mut cpu.reg.cc);
+            bus.write(addr, r);
+        }
+        0x7B => {
+            // XDEC extended (undocumented)
+            // This instruction is similar to DEC instruction, except that
+            // the carry flag is modified.
+            // Flags:
+            // Z - set if the result is zero, otherwise cleared (the same as DEC)
+            // N - set if the result is negative, otherwise cleared (the same as DEC)
+            // V - set if the operand is is 0x80, otherwise cleared (the same as DEC)
+            // C - cleared if the operand is zero, otherwise set (different to DEC)
+            // all other flags unchanged
+            let addr = cpu.addr_extended(bus);
+            let val = bus.read(addr);
+            let r = alu::dec8(val, &mut cpu.reg.cc);
+            cpu.reg.cc.set_carry(val != 0);
             bus.write(addr, r);
         }
         0x7C => {
@@ -944,6 +1145,7 @@ pub fn execute(cpu: &mut Cpu, bus: &mut impl Bus, opcode: u8) {
             bus.write(addr, v);
         }
         0xA8 => {
+            // EORA indexed
             let (addr, ex) = cpu.addr_indexed(bus);
             cpu.cycles += ex as u64;
             let v = bus.read(addr);
@@ -1060,6 +1262,7 @@ pub fn execute(cpu: &mut Cpu, bus: &mut impl Bus, opcode: u8) {
             bus.write(addr, v);
         }
         0xB8 => {
+            // EORA extended
             let addr = cpu.addr_extended(bus);
             let v = bus.read(addr);
             let a = cpu.reg.a();
@@ -1133,11 +1336,12 @@ pub fn execute(cpu: &mut Cpu, bus: &mut impl Bus, opcode: u8) {
             cpu.reg.set_b(r);
         }
         0xC3 => {
+            // ADDD immediate
             let v = cpu.fetch_word(bus);
             let d = cpu.reg.d;
             let r = alu::add16(d, v, &mut cpu.reg.cc);
             cpu.reg.d = r;
-        } // ADDD
+        }
         0xC4 => {
             let v = cpu.fetch_byte(bus);
             let b = cpu.reg.b();
@@ -1185,7 +1389,10 @@ pub fn execute(cpu: &mut Cpu, bus: &mut impl Bus, opcode: u8) {
             alu::ld16_flags(v, &mut cpu.reg.cc);
             cpu.reg.d = v;
         }
-        // 0xCD illegal
+        0xCD => {
+            // XHCF Halt and Catch Fire (undocumented)
+            cpu.halted = true;
+        }
         0xCE => {
             let v = cpu.fetch_word(bus);
             alu::ld16_flags(v, &mut cpu.reg.cc);
