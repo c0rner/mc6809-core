@@ -60,7 +60,7 @@ pub trait Bus {
     /// Called once after each CPU step (or batch of steps). Implementations
     /// should update timers, trigger IRQs, etc. and report the resulting
     /// signal states. The caller is responsible for feeding these signals
-    /// into the CPU via [`Cpu::set_irq`], [`Cpu::set_firq`], etc.
+    /// into the CPU via [`crate::Cpu::set_irq`], [`crate::Cpu::set_firq`], etc.
     ///
     /// The default implementation is a no-op that returns all signals inactive,
     /// which is correct for simple test buses with no peripherals.

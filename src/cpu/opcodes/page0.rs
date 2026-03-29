@@ -14,7 +14,7 @@
 
 //! Page 0 opcode implementations (0x00..0xFF, excluding 0x10/0x11 page prefixes).
 //! Contains all undocumented page 0 opcodes except all store immediate,
-//! source: https://github.com/hoglet67/6809Decoder/wiki/Undocumented-6809-Behaviours
+//! source: <https://github.com/hoglet67/6809Decoder/wiki/Undocumented-6809-Behaviours>
 
 use crate::alu;
 use crate::bus::Bus;
