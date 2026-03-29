@@ -16,7 +16,7 @@
 //!
 //! Contains: long conditional branches, SWI2, CMPD, CMPY, LDY, STY, LDS, STS.
 //! Contains all undocumented page 1 opcodes except all store immediate,
-//! source: https://github.com/hoglet67/6809Decoder/wiki/Undocumented-6809-Behaviours
+//! source: <https://github.com/hoglet67/6809Decoder/wiki/Undocumented-6809-Behaviours>
 
 use crate::alu;
 use crate::bus::Bus;

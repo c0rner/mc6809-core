@@ -16,7 +16,7 @@
 //!
 //! Contains: SWI3, CMPU, CMPS.
 //! Contains all undocumented page 2 opcodes except all store immediate,
-//! source: https://github.com/hoglet67/6809Decoder/wiki/Undocumented-6809-Behaviours
+//! source: <https://github.com/hoglet67/6809Decoder/wiki/Undocumented-6809-Behaviours>
 
 use crate::alu;
 use crate::bus::Bus;
