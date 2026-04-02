@@ -143,11 +143,12 @@ impl Cpu {
 
     /// Run until at least `cycle_budget` cycles have been consumed.
     pub fn run(&mut self, bus: &mut impl Bus, cycle_budget: u64) -> u64 {
+        let start_cycles = self.cycles;
         let target = self.cycles + cycle_budget;
         while self.cycles < target && !self.halted {
             self.step(bus);
         }
-        self.cycles - (target - cycle_budget)
+        self.cycles - start_cycles
     }
 
     // ---- interrupt logic ----
