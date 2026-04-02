@@ -71,7 +71,7 @@ pub fn execute(cpu: &mut Cpu, bus: &mut impl Bus, opcode: u8) {
         // Long conditional branches (16-bit relative offset)
         // =================================================================
         0x20 => {
-            // LXBRA
+            // XLBRA (same as LBRA with one extra cycle)
             let addr = cpu.addr_relative16(bus);
             cpu.reg.pc = addr;
         }

@@ -659,7 +659,7 @@ fn swi_instruction() {
 // ---- RTI (full from NMI) ----
 
 #[test]
-fn nmi_full() {
+fn rti_full() {
     // Simulate: push entire state (E=1) and PC, then RTI
     let mut bus = TestBus::new();
     bus.set_reset_vector(0x0400);
