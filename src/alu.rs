@@ -28,8 +28,7 @@ pub fn add8(a: u8, b: u8, cc: &mut ConditionCodes) -> u8 {
     let r16 = a as u16 + b as u16;
     let result = r16 as u8;
     cc.set_half_carry((a ^ b ^ result) & 0x10 != 0);
-    cc.set_negative(result & 0x80 != 0);
-    cc.set_zero(result == 0);
+    cc.set_nz8(result);
     cc.set_overflow((a ^ result) & (b ^ result) & 0x80 != 0);
     cc.set_carry(r16 > 0xFF);
     result
@@ -41,8 +40,7 @@ pub fn adc8(a: u8, b: u8, cc: &mut ConditionCodes) -> u8 {
     let r16 = a as u16 + b as u16 + c as u16;
     let result = r16 as u8;
     cc.set_half_carry((a ^ b ^ result) & 0x10 != 0);
-    cc.set_negative(result & 0x80 != 0);
-    cc.set_zero(result == 0);
+    cc.set_nz8(result);
     cc.set_overflow((a ^ result) & (b ^ result) & 0x80 != 0);
     cc.set_carry(r16 > 0xFF);
     result
@@ -52,8 +50,7 @@ pub fn adc8(a: u8, b: u8, cc: &mut ConditionCodes) -> u8 {
 pub fn sub8(a: u8, b: u8, cc: &mut ConditionCodes) -> u8 {
     let r16 = (a as u16).wrapping_sub(b as u16);
     let result = r16 as u8;
-    cc.set_negative(result & 0x80 != 0);
-    cc.set_zero(result == 0);
+    cc.set_nz8(result);
     cc.set_overflow((a ^ b) & (a ^ result) & 0x80 != 0);
     cc.set_carry(a < b);
     result
@@ -64,8 +61,7 @@ pub fn sbc8(a: u8, b: u8, cc: &mut ConditionCodes) -> u8 {
     let c = cc.carry() as u16;
     let r16 = (a as u16).wrapping_sub(b as u16).wrapping_sub(c);
     let result = r16 as u8;
-    cc.set_negative(result & 0x80 != 0);
-    cc.set_zero(result == 0);
+    cc.set_nz8(result);
     cc.set_overflow((a ^ b) & (a ^ result) & 0x80 != 0);
     cc.set_carry(r16 > 0xFF);
     result
@@ -74,8 +70,7 @@ pub fn sbc8(a: u8, b: u8, cc: &mut ConditionCodes) -> u8 {
 /// NEG: result = 0 - val. Sets N, Z, V, C.
 pub fn neg8(val: u8, cc: &mut ConditionCodes) -> u8 {
     let result = (val as i8).wrapping_neg() as u8;
-    cc.set_negative(result & 0x80 != 0);
-    cc.set_zero(result == 0);
+    cc.set_nz8(result);
     cc.set_overflow(val == 0x80);
     cc.set_carry(val != 0x00);
     result
@@ -84,8 +79,7 @@ pub fn neg8(val: u8, cc: &mut ConditionCodes) -> u8 {
 /// COM: result = !val. Sets N, Z, V=0, C=1.
 pub fn com8(val: u8, cc: &mut ConditionCodes) -> u8 {
     let result = !val;
-    cc.set_negative(result & 0x80 != 0);
-    cc.set_zero(result == 0);
+    cc.set_nz8(result);
     cc.set_overflow(false);
     cc.set_carry(true);
     result
@@ -94,8 +88,7 @@ pub fn com8(val: u8, cc: &mut ConditionCodes) -> u8 {
 /// INC: result = val + 1. Sets N, Z, V. Does NOT affect C.
 pub fn inc8(val: u8, cc: &mut ConditionCodes) -> u8 {
     let result = val.wrapping_add(1);
-    cc.set_negative(result & 0x80 != 0);
-    cc.set_zero(result == 0);
+    cc.set_nz8(result);
     cc.set_overflow(val == 0x7F);
     result
 }
@@ -103,8 +96,7 @@ pub fn inc8(val: u8, cc: &mut ConditionCodes) -> u8 {
 /// DEC: result = val - 1. Sets N, Z, V. Does NOT affect C.
 pub fn dec8(val: u8, cc: &mut ConditionCodes) -> u8 {
     let result = val.wrapping_sub(1);
-    cc.set_negative(result & 0x80 != 0);
-    cc.set_zero(result == 0);
+    cc.set_nz8(result);
     cc.set_overflow(val == 0x80);
     result
 }
@@ -120,8 +112,7 @@ pub fn clr8(cc: &mut ConditionCodes) -> u8 {
 
 /// TST: test value. Sets N, Z, V=0. Does NOT affect C.
 pub fn tst8(val: u8, cc: &mut ConditionCodes) {
-    cc.set_negative(val & 0x80 != 0);
-    cc.set_zero(val == 0);
+    cc.set_nz8(val);
     cc.set_overflow(false);
 }
 
@@ -132,8 +123,7 @@ pub fn tst8(val: u8, cc: &mut ConditionCodes) {
 /// AND: result = a & b. Sets N, Z, V=0.
 pub fn and8(a: u8, b: u8, cc: &mut ConditionCodes) -> u8 {
     let result = a & b;
-    cc.set_negative(result & 0x80 != 0);
-    cc.set_zero(result == 0);
+    cc.set_nz8(result);
     cc.set_overflow(false);
     result
 }
@@ -141,8 +131,7 @@ pub fn and8(a: u8, b: u8, cc: &mut ConditionCodes) -> u8 {
 /// OR: result = a | b. Sets N, Z, V=0.
 pub fn or8(a: u8, b: u8, cc: &mut ConditionCodes) -> u8 {
     let result = a | b;
-    cc.set_negative(result & 0x80 != 0);
-    cc.set_zero(result == 0);
+    cc.set_nz8(result);
     cc.set_overflow(false);
     result
 }
@@ -150,8 +139,7 @@ pub fn or8(a: u8, b: u8, cc: &mut ConditionCodes) -> u8 {
 /// EOR: result = a ^ b. Sets N, Z, V=0.
 pub fn eor8(a: u8, b: u8, cc: &mut ConditionCodes) -> u8 {
     let result = a ^ b;
-    cc.set_negative(result & 0x80 != 0);
-    cc.set_zero(result == 0);
+    cc.set_nz8(result);
     cc.set_overflow(false);
     result
 }
@@ -173,8 +161,7 @@ pub fn lsr8(val: u8, cc: &mut ConditionCodes) -> u8 {
 pub fn asr8(val: u8, cc: &mut ConditionCodes) -> u8 {
     cc.set_carry(val & 0x01 != 0);
     let result = ((val as i8) >> 1) as u8;
-    cc.set_negative(result & 0x80 != 0);
-    cc.set_zero(result == 0);
+    cc.set_nz8(result);
     result
 }
 
@@ -182,8 +169,7 @@ pub fn asr8(val: u8, cc: &mut ConditionCodes) -> u8 {
 pub fn asl8(val: u8, cc: &mut ConditionCodes) -> u8 {
     cc.set_carry(val & 0x80 != 0);
     let result = val << 1;
-    cc.set_negative(result & 0x80 != 0);
-    cc.set_zero(result == 0);
+    cc.set_nz8(result);
     cc.set_overflow((val ^ result) & 0x80 != 0);
     result
 }
@@ -193,8 +179,7 @@ pub fn rol8(val: u8, cc: &mut ConditionCodes) -> u8 {
     let old_c = cc.carry() as u8;
     cc.set_carry(val & 0x80 != 0);
     let result = (val << 1) | old_c;
-    cc.set_negative(result & 0x80 != 0);
-    cc.set_zero(result == 0);
+    cc.set_nz8(result);
     cc.set_overflow((val ^ result) & 0x80 != 0);
     result
 }
@@ -204,8 +189,7 @@ pub fn ror8(val: u8, cc: &mut ConditionCodes) -> u8 {
     let old_c = cc.carry() as u8;
     cc.set_carry(val & 0x01 != 0);
     let result = (val >> 1) | (old_c << 7);
-    cc.set_negative(result & 0x80 != 0);
-    cc.set_zero(result == 0);
+    cc.set_nz8(result);
     result
 }
 
@@ -217,8 +201,7 @@ pub fn ror8(val: u8, cc: &mut ConditionCodes) -> u8 {
 pub fn add16(a: u16, b: u16, cc: &mut ConditionCodes) -> u16 {
     let r32 = a as u32 + b as u32;
     let result = r32 as u16;
-    cc.set_negative(result & 0x8000 != 0);
-    cc.set_zero(result == 0);
+    cc.set_nz16(result);
     cc.set_overflow((a ^ result) & (b ^ result) & 0x8000 != 0);
     cc.set_carry(r32 > 0xFFFF);
     result
@@ -228,8 +211,7 @@ pub fn add16(a: u16, b: u16, cc: &mut ConditionCodes) -> u16 {
 pub fn sub16(a: u16, b: u16, cc: &mut ConditionCodes) -> u16 {
     let r32 = (a as u32).wrapping_sub(b as u32);
     let result = r32 as u16;
-    cc.set_negative(result & 0x8000 != 0);
-    cc.set_zero(result == 0);
+    cc.set_nz16(result);
     cc.set_overflow((a ^ b) & (a ^ result) & 0x8000 != 0);
     cc.set_carry(a < b);
     result
@@ -273,8 +255,7 @@ pub fn daa(a: u8, cc: &mut ConditionCodes) -> u8 {
     }
 
     let result = a.wrapping_add(correction);
-    cc.set_negative(result & 0x80 != 0);
-    cc.set_zero(result == 0);
+    cc.set_nz8(result);
     cc.set_carry(carry);
     // V is undefined per spec
     result

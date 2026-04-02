@@ -49,15 +49,15 @@ const PAGE1_CYCLES: [u8; 256] = {
     t[0xBC] = 8;  // CMPY extended
     t[0xBE] = 7;  // LDY extended
     t[0xBF] = 7;  // STY extended
-    t[0xC3] = 5;  // XADDD imm
+    t[0xC3] = 5;  // XADDD imm (undocumented)
     t[0xCE] = 4;  // LDS imm
-    t[0xD3] = 7;  // XADDD direct
+    t[0xD3] = 7;  // XADDD direct (undocumented)
     t[0xDE] = 6;  // LDS direct
     t[0xDF] = 6;  // STS direct
-    t[0xE3] = 7;  // XADDD indexed
+    t[0xE3] = 7;  // XADDD indexed (undocumented)
     t[0xEE] = 6;  // LDS indexed
     t[0xEF] = 6;  // STS indexed
-    t[0xF3] = 8;  // XADDD extended
+    t[0xF3] = 8;  // XADDD extended (undocumented)
     t[0xFE] = 7;  // LDS extended
     t[0xFF] = 7;  // STS extended
     t
@@ -71,7 +71,7 @@ pub fn execute(cpu: &mut Cpu, bus: &mut impl Bus, opcode: u8) {
         // Long conditional branches (16-bit relative offset)
         // =================================================================
         0x20 => {
-            // LXBRA
+            // XLBRA (same as LBRA with one extra cycle)
             let addr = cpu.addr_relative16(bus);
             cpu.reg.pc = addr;
         }
@@ -330,6 +330,7 @@ pub fn execute(cpu: &mut Cpu, bus: &mut impl Bus, opcode: u8) {
             cpu.arm_nmi();
         }
         0xD3 => {
+            // XADDD direct (undocumented)
             let addr = cpu.addr_direct(bus);
             let v = bus.read_word(addr);
             let d = cpu.reg.d;
@@ -349,6 +350,7 @@ pub fn execute(cpu: &mut Cpu, bus: &mut impl Bus, opcode: u8) {
             bus.write_word(addr, v);
         }
         0xE3 => {
+            // XADDD indexed (undocumented)
             let (addr, ex) = cpu.addr_indexed(bus);
             cpu.cycles += ex as u64;
             let v = bus.read_word(addr);
@@ -371,6 +373,7 @@ pub fn execute(cpu: &mut Cpu, bus: &mut impl Bus, opcode: u8) {
             bus.write_word(addr, v);
         }
         0xF3 => {
+            // XADDD extended (undocumented)
             let addr = cpu.addr_extended(bus);
             let v = bus.read_word(addr);
             let d = cpu.reg.d;
@@ -393,7 +396,8 @@ pub fn execute(cpu: &mut Cpu, bus: &mut impl Bus, opcode: u8) {
         // Illegal Page 1 opcodes
         _ => {
             // 1 cycle already consumed by the page prefix fetch
-            println!("Illegal Page 1 opcode: 0x10 {:02X}", opcode);
+            //debug!("Illegal Page 1 opcode: 0x10 {:02X}", opcode);
+            cpu.illegal = true;
         }
     }
 }

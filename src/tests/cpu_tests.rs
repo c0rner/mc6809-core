@@ -14,7 +14,7 @@
 
 //! Integration tests for the CPU — load short programs and verify behavior.
 
-use crate::{Bus, Cpu};
+use crate::{Bus, Cpu, registers::CC_E};
 
 /// Simple 64KB flat RAM bus for testing.
 struct TestBus {
@@ -654,6 +654,35 @@ fn swi_instruction() {
     assert!(cpu.reg.cc.entire());
     // S should have decremented by 12 bytes (entire state)
     assert_eq!(cpu.reg.s, 0x8000 - 12);
+}
+
+// ---- RTI (full from NMI) ----
+
+#[test]
+fn rti_full() {
+    // Simulate: push entire state (E=1) and PC, then RTI
+    let mut bus = TestBus::new();
+    bus.set_reset_vector(0x0400);
+    bus.mem[0x0400] = 0x3B; // RTI
+
+    let mut cpu = Cpu::new();
+    cpu.reset(&mut bus);
+    cpu.reg.s = 0x8000;
+
+    // Manually push entire state (NMI style: CC, A, B, DP, X, Y, U, PC)
+    let return_pc: u16 = 0x1234;
+    let cc_byte: u8 = CC_E; // E=1 for full state
+    cpu.reg.s -= 1;
+    bus.mem[cpu.reg.s as usize] = (return_pc & 0xFF) as u8; // PC lo
+    cpu.reg.s -= 1;
+    bus.mem[cpu.reg.s as usize] = (return_pc >> 8) as u8; // PC hi
+    cpu.reg.s -= 9; // A, B, DP, X, Y, U; Skip 9 bytes (1+1+1+2+2+2) for remaining registers
+    cpu.reg.s -= 1;
+    bus.mem[cpu.reg.s as usize] = cc_byte; // CC
+
+    cpu.step(&mut bus); // RTI
+    assert_eq!(cpu.reg.pc, 0x1234);
+    assert!(cpu.reg.cc.entire());
 }
 
 // ---- RTI (short from FIRQ) ----

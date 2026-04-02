@@ -424,7 +424,7 @@ pub fn execute(cpu: &mut Cpu, bus: &mut impl Bus, opcode: u8) {
             let cc = cpu.pull_byte_s(bus);
             cpu.reg.cc = crate::registers::ConditionCodes::from_byte(cc);
             if cpu.reg.cc.entire() {
-                // Full restore: 15 cycles total
+                // Full restore: 15 cycles total (6 base + 9 extra)
                 let a = cpu.pull_byte_s(bus);
                 cpu.reg.set_a(a);
                 let b = cpu.pull_byte_s(bus);
@@ -433,7 +433,7 @@ pub fn execute(cpu: &mut Cpu, bus: &mut impl Bus, opcode: u8) {
                 cpu.reg.x = cpu.pull_word_s(bus);
                 cpu.reg.y = cpu.pull_word_s(bus);
                 cpu.reg.u = cpu.pull_word_s(bus);
-                cpu.cycles += 9; // 6 base + 9 extra = 15
+                cpu.cycles += 9;
             }
             cpu.reg.pc = cpu.pull_word_s(bus);
         }
