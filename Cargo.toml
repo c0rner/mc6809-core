@@ -1,8 +1,15 @@
 [package]
 name = "mc6809-core"
+description = "Motorola 6809 CPU emulator core"
 version = "0.1.1"
 edition = "2024"
-description = "Motorola 6809 CPU emulator core"
+license = "Apache-2.0"
+keywords = ["6809", "mc6809", "emulator", "motorola"]
+categories = ["emulators", "embedded"]
+readme = "README.md"
+license-dile = "LICENSE"
+repository = "https://github.com/c0rner/mc6809-core"
+include = ["/src"]
 
 [lib]
 name = "mc6809_core"
