@@ -267,22 +267,6 @@ impl Cpu {
         self.push_byte_s(bus, self.reg.cc.to_byte());
     }
 
-    /// Pull the entire register state from S (E flag was set).
-    #[allow(dead_code)]
-    pub(super) fn pull_entire_state(&mut self, bus: &mut impl Bus) {
-        let cc = self.pull_byte_s(bus);
-        self.reg.cc = crate::registers::ConditionCodes::from_byte(cc);
-        let a = self.pull_byte_s(bus);
-        self.reg.set_a(a);
-        let b = self.pull_byte_s(bus);
-        self.reg.set_b(b);
-        self.reg.dp = self.pull_byte_s(bus);
-        self.reg.x = self.pull_word_s(bus);
-        self.reg.y = self.pull_word_s(bus);
-        self.reg.u = self.pull_word_s(bus);
-        self.reg.pc = self.pull_word_s(bus);
-    }
-
     // ---- instruction fetch helpers ----
 
     /// Fetch a byte from [PC] and advance PC.
