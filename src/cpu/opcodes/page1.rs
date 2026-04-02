@@ -393,7 +393,8 @@ pub fn execute(cpu: &mut Cpu, bus: &mut impl Bus, opcode: u8) {
         // Illegal Page 1 opcodes
         _ => {
             // 1 cycle already consumed by the page prefix fetch
-            println!("Illegal Page 1 opcode: 0x10 {:02X}", opcode);
+            //debug!("Illegal Page 1 opcode: 0x10 {:02X}", opcode);
+            cpu.illegal = true;
         }
     }
 }
