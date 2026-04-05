@@ -29,9 +29,13 @@ pub(crate) const CC_F: u8 = 0x40; // FIRQ inhibit
 pub(crate) const CC_E: u8 = 0x80; // Entire state saved
 
 /// The 6809 Condition Code register, stored as a packed byte.
+///
+/// `#[repr(transparent)]` guarantees that this type has exactly the same
+/// memory layout as a `u8`, making it safe to use in `#[repr(C)]` structs
+/// and directly accessible from JIT-emitted code.
+#[repr(transparent)]
 #[derive(Clone, Copy, Default, PartialEq, Eq)]
 pub struct ConditionCodes(u8);
-
 impl ConditionCodes {
     pub const fn new() -> Self {
         Self(0)
@@ -162,6 +166,11 @@ impl fmt::Display for ConditionCodes {
 ///
 /// Register D is stored as a `u16` with A in the high byte and B in the low byte,
 /// matching the hardware layout.
+///
+/// `#[repr(C)]` guarantees a stable, predictable memory layout for use in
+/// JIT-compiled code and FFI contexts. Field offsets (bytes):
+/// `d`=0, `x`=2, `y`=4, `u`=6, `s`=8, `pc`=10, `dp`=12, `cc`=13.
+#[repr(C)]
 #[derive(Clone, Copy, Debug, Default)]
 pub struct Registers {
     /// Accumulator D (A:B). A = high byte, B = low byte.
