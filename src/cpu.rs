@@ -17,6 +17,8 @@ use crate::registers::Registers;
 
 mod opcodes;
 
+pub use opcodes::instruction_cycles;
+
 // ---------------------------------------------------------------------------
 // Interrupt vector addresses
 // ---------------------------------------------------------------------------

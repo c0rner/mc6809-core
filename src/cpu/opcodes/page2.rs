@@ -43,6 +43,11 @@ const PAGE2_CYCLES: [u8; 256] = {
     t
 };
 
+/// Returns the base cycle count for a Page 2 (0x11xx) sub-opcode.
+pub(super) fn cycles(sub: u8) -> u8 {
+    PAGE2_CYCLES[sub as usize]
+}
+
 pub fn execute(cpu: &mut Cpu, bus: &mut impl Bus, opcode: u8) {
     cpu.cycles += PAGE2_CYCLES[opcode as usize] as u64;
 

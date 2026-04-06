@@ -53,6 +53,7 @@ pub mod registers;
 
 pub use bus::{Bus, BusSignals};
 pub use cpu::Cpu;
+pub use cpu::instruction_cycles;
 pub use registers::{ConditionCodes, Registers};
 
 #[cfg(test)]

@@ -21,6 +21,22 @@ mod page2;
 use crate::bus::Bus;
 use crate::cpu::Cpu;
 
+/// Returns the base cycle count for a 6809 instruction.
+///
+/// Pass the raw instruction bytes starting at the opcode byte. The function
+/// inspects `bytes[0]` to detect the page prefix (0x10 = page 1, 0x11 = page 2)
+/// and dispatches to the appropriate cycle table.
+///
+/// Returns `0` for an empty slice or an unrecognised sub-opcode.
+pub fn instruction_cycles(bytes: &[u8]) -> u8 {
+    match bytes.first().copied() {
+        Some(0x10) => bytes.get(1).map_or(0, |&sub| page1::cycles(sub)),
+        Some(0x11) => bytes.get(1).map_or(0, |&sub| page2::cycles(sub)),
+        Some(op)   => page0::cycles(op),
+        None       => 0,
+    }
+}
+
 /// Execute a single opcode (already fetched).
 impl Cpu {
     pub(crate) fn execute(&mut self, bus: &mut impl Bus, opcode: u8) {
