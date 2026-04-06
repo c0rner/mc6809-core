@@ -45,6 +45,11 @@ const PAGE0_CYCLES: [u8; 256] = [
     5,  5,  5,  7,  5,  5,  5,  5,  5,  5,  5,  5,  6,  6,  6,  6, // Fx
 ];
 
+/// Returns the base cycle count for a Page 0 opcode.
+pub(super) fn cycles(opcode: u8) -> u8 {
+    PAGE0_CYCLES[opcode as usize]
+}
+
 pub fn execute(cpu: &mut Cpu, bus: &mut impl Bus, opcode: u8) {
     cpu.cycles += PAGE0_CYCLES[opcode as usize] as u64;
 

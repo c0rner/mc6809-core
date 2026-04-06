@@ -14,3 +14,5 @@
 
 mod alu_tests;
 mod cpu_tests;
+mod instruction_cycles_tests;
+mod register_tests;
