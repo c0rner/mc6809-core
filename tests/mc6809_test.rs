@@ -39,12 +39,6 @@ fn mc6809_integration() {
                 test_num, cpu.reg.pc, cpu.cycles,
             );
         }
-        HaltReason::IllegalOpcode => {
-            panic!(
-                "Illegal opcode at PC={:#06X} after {} cycles",
-                cpu.reg.pc, cpu.cycles,
-            );
-        }
         HaltReason::CycleLimit => {
             panic!(
                 "Cycle limit exceeded without pass/fail signal  (PC={:#06X})",

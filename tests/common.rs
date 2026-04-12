@@ -34,8 +34,6 @@ pub enum HaltReason {
     Pass(u8),
     /// A test failed; value is the failing test number written to FAIL_REG.
     Fail(u8),
-    /// CPU hit an illegal opcode.
-    IllegalOpcode,
     /// Cycle budget exhausted before the program signalled pass or fail.
     CycleLimit,
 }
@@ -53,7 +51,7 @@ pub enum HaltReason {
 /// vectors anywhere in the 64 KB address space.
 pub struct TestHarnessBus {
     mem: Box<[u8; 65536]>,
-    pub halted: bool,
+    halted: bool,
     halt_reason: Option<HaltReason>,
     irq_asserted: bool,
     firq_asserted: bool,
@@ -135,9 +133,6 @@ pub fn run_to_halt(cpu: &mut Cpu, bus: &mut TestHarnessBus) -> HaltReason {
         cpu.step(bus);
         if bus.halted {
             return bus.halt_reason.take().unwrap();
-        }
-        if cpu.halted {
-            return HaltReason::IllegalOpcode;
         }
     }
     HaltReason::CycleLimit
