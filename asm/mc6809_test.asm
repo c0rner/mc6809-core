@@ -18,57 +18,46 @@
 ;
 ; Memory layout
 ; -------------
-;   $0000         startup + jmp run_tests
-;   $0050         swi_handler / swi2_handler / swi3_handler
-;   $0080         test_fail stub
-;   $0090         irq_handler / firq_handler / nmi_handler
-;   $1000-$101F   scratch RAM (load/store tests)
-;   $1FF0         SWI_COUNT  (zero-filled in flat binary)
-;   $1FF1         SWI2_COUNT
-;   $1FF2         SWI3_COUNT
-;   $1FF3         SCRATCH    (single-byte temp for SWI counter compare)
-;   $1FF4         IRQ_CALLED (set to 1 by irq_handler)
-;   $1FF5         FIRQ_CALLED (set to 1 by firq_handler)
-;   $1FF6         NMI_CALLED  (set to 1 by nmi_handler)
-;   $2000+        run_tests + t01 .. t28
-;   $F000         system stack top  (S grows downward)
-;   $F100         user   stack top  (U grows downward)
-;   $FF00         PASS_REG  (write any value → pass)
-;   $FF01         FAIL_REG  (write test# → fail)
-;   $FF02         TRIGGER_IRQ  (write 1 to assert, 0 to deassert)
-;   $FF03         TRIGGER_FIRQ (write 1 to assert, 0 to deassert)
-;   $FF04         TRIGGER_NMI  (write any value → one NMI pulse)
+ENTRY        equ  $0000     ; startup + jmp run_tests
+TEST_FAIL    equ  $0050     ; test_fail stub
+; ---------------------------------------------------------------------------
+SWI_HANDLER  equ  $0060     ; swi_handler / swi2_handler / swi3_handler
+IRQ_HANDLER  equ  $0090     ; irq_handler / firq_handler / nmi_handler
+; ---------------------------------------------------------------------------
+S_STACK      equ  $0400     ; system stack top  (S grows downward)
+U_STACK      equ  $0500     ; user   stack top  (U grows downward)
+; ---------------------------------------------------------------------------
+TEST_START   equ  $0500     ; run_tests + t01 .. t28
+; ---------------------------------------------------------------------------
+SCRATCH_RAM  equ  $A000     ; scratch RAM (load/store tests)
+SWI_COUNT    equ  $AFF0     ; SWI_COUNT  (zero-filled in flat binary)
+SWI2_COUNT   equ  $AFF1     ; SWI2_COUNT
+SWI3_COUNT   equ  $AFF2     ; SWI3_COUNT
+SCRATCH      equ  $AFF3     ; SCRATCH    (single-byte temp for SWI counter compare)
+IRQ_CALLED   equ  $AFF4     ; IRQ_CALLED (set to 1 by irq_handler)
+FIRQ_CALLED  equ  $AFF5     ; FIRQ_CALLED (set to 1 by firq_handler)
+NMI_CALLED   equ  $AFF6     ; NMI_CALLED  (set to 1 by nmi_handler)
+; ---------------------------------------------------------------------------
+PASS_REG     equ  $FF00     ;PASS_REG  (write any value → pass)
+FAIL_REG     equ  $FF01     ;FAIL_REG  (write test# → fail)
+TRIGGER_IRQ  equ  $FF02     ;TRIGGER_IRQ  (write 1 to assert, 0 to deassert)
+TRIGGER_FIRQ equ  $FF03     ;TRIGGER_FIRQ (write 1 to assert, 0 to deassert)
+TRIGGER_NMI  equ  $FF04     ;TRIGGER_NMI  (write any value → one NMI pulse)
+; ---------------------------------------------------------------------------
+VEC_NMI      equ  $FFFC
+VEC_IRQ      equ  $FFF8
+VEC_FIRQ     equ  $FFF6
+VEC_SWI3     equ  $FFF2
+VEC_SWI2     equ  $FFF4
+VEC_SWI      equ  $FFFA
 ; ---------------------------------------------------------------------------
 
-PASS_REG    equ  $FF00
-FAIL_REG    equ  $FF01
-TRIGGER_IRQ  equ  $FF02
-TRIGGER_FIRQ equ  $FF03
-TRIGGER_NMI  equ  $FF04
-
-S_STACK     equ  $F000
-U_STACK     equ  $F100
-
-SWI_COUNT   equ  $1FF0
-SWI2_COUNT  equ  $1FF1
-SWI3_COUNT  equ  $1FF2
-SCRATCH     equ  $1FF3
-IRQ_CALLED  equ  $1FF4
-FIRQ_CALLED equ  $1FF5
-NMI_CALLED  equ  $1FF6
-
-VEC_NMI     equ  $FFFC
-VEC_IRQ     equ  $FFF8
-VEC_FIRQ    equ  $FFF6
-VEC_SWI3    equ  $FFF2
-VEC_SWI2    equ  $FFF4
-VEC_SWI     equ  $FFFA
 
 ; ---------------------------------------------------------------------------
 ; Startup
 ; ---------------------------------------------------------------------------
 
-            org  $0000
+            org  #ENTRY
 
 start:
             lds  #S_STACK
@@ -105,13 +94,24 @@ start:
             jmp  run_tests
 
 ; ---------------------------------------------------------------------------
+; test_fail: B = failing test number
+; Writes B to FAIL_REG (stops the emulator), then loops forever.
+; ---------------------------------------------------------------------------
+
+            org  #TEST_FAIL
+
+test_fail:
+            stb  >FAIL_REG
+            bra  test_fail
+
+; ---------------------------------------------------------------------------
 ; SWI / SWI2 / SWI3 interrupt handlers
 ;
 ; Increment the appropriate call counter, then clobber A/B/X/Y with
 ; distinctive values so that RTI can be verified to restore them.
 ; ---------------------------------------------------------------------------
 
-            org  $0050
+            org  #SWI_HANDLER
 
 swi_handler:
             inc  >SWI_COUNT
@@ -138,17 +138,6 @@ swi3_handler:
             rti
 
 ; ---------------------------------------------------------------------------
-; test_fail: B = failing test number
-; Writes B to FAIL_REG (stops the emulator), then loops forever.
-; ---------------------------------------------------------------------------
-
-            org  $0080
-
-test_fail:
-            stb  >FAIL_REG
-            bra  test_fail
-
-; ---------------------------------------------------------------------------
 ; IRQ / FIRQ / NMI interrupt handlers
 ;
 ; irq_handler  – full frame (E=1): clobbers A/B/X/Y to verify RTI restores
@@ -158,7 +147,7 @@ test_fail:
 ; nmi_handler  – full frame, non-maskable: clobbers A/B/X to verify RTI.
 ; ---------------------------------------------------------------------------
 
-            org  $0090
+            org  #IRQ_HANDLER
 
 irq_handler:
             inc  >IRQ_CALLED          ; record call (memory op, no regs)
@@ -185,7 +174,7 @@ nmi_handler:
 ; run_tests: call every test subroutine, then signal PASS
 ; ---------------------------------------------------------------------------
 
-            org  $2000
+            org  #TEST_START
 
 run_tests:
             jsr  t01_imm_loads
@@ -228,31 +217,33 @@ run_tests:
 t01_imm_loads:
             lda  #$42
             cmpa #$42
-            lbne t01_fail
+            bne t01_fail
 
             ; LDA #0 sets Z
             lda  #$00
-            lbne t01_fail
+            bne t01_fail
 
             ; LDA #$80 sets N
             lda  #$80
-            lbpl t01_fail
+            bpl t01_fail
 
             ldb  #$55
             cmpb #$55
-            lbne t01_fail
+            bne t01_fail
 
+            cmpd #$8055
+            bne t01_fail
             ldd  #$1234
             cmpd #$1234
-            lbne t01_fail
+            bne t01_fail
 
             ldx  #$ABCD
             cmpx #$ABCD
-            lbne t01_fail
+            bne t01_fail
 
             ldy  #$CAFE
             cmpy #$CAFE
-            lbne t01_fail
+            bne t01_fail
 
             ; LDU — save CC across the U pointer restore
             ldu  #$5678
@@ -260,7 +251,7 @@ t01_imm_loads:
             tfr  cc,a
             ldu  #U_STACK
             tfr  a,cc
-            lbne t01_fail
+            bne t01_fail
 
             ; LDS — use pshu/pulu to save and restore S
             ; pulu does NOT modify CC, so the CMPS result survives
@@ -268,7 +259,7 @@ t01_imm_loads:
             lds  #$0800
             cmps #$0800
             pulu s
-            lbne t01_fail
+            bne t01_fail
 
             rts
 
@@ -282,45 +273,45 @@ t01_fail:
 
 t02_ext_stores:
             lda  #$A5
-            sta  >$1000
+            sta  >SCRATCH_RAM
             clra
-            lda  >$1000
+            lda  >SCRATCH_RAM
             cmpa #$A5
             lbne t02_fail
 
             ldb  #$5A
-            stb  >$1001
+            stb  >SCRATCH_RAM + 1
             clrb
-            ldb  >$1001
+            ldb  >SCRATCH_RAM + 1
             cmpb #$5A
             lbne t02_fail
 
             ldd  #$1234
-            std  >$1002
+            std  >SCRATCH_RAM + 2
             ldd  #$0000
-            ldd  >$1002
+            ldd  >SCRATCH_RAM + 2
             cmpd #$1234
             lbne t02_fail
 
             ldx  #$5678
-            stx  >$1004
+            stx  >SCRATCH_RAM + 4
             ldx  #$0000
-            ldx  >$1004
+            ldx  >SCRATCH_RAM + 4
             cmpx #$5678
             lbne t02_fail
 
             ldy  #$9ABC
-            sty  >$1006
+            sty  >SCRATCH_RAM + 6
             ldy  #$0000
-            ldy  >$1006
+            ldy  >SCRATCH_RAM + 6
             cmpy #$9ABC
             lbne t02_fail
 
             ; STU/LDU — save CC across U pointer restore
             ldu  #$DEAD
-            stu  >$1008
+            stu  >SCRATCH_RAM + 8
             ldu  #U_STACK
-            ldu  >$1008
+            ldu  >SCRATCH_RAM + 8
             cmpu #$DEAD
             tfr  cc,a
             ldu  #U_STACK
@@ -330,8 +321,8 @@ t02_ext_stores:
             ; STS/LDS — use pshu/pulu (pulu preserves CC)
             pshu s
             lds  #$1800
-            sts  >$100A
-            lds  >$100A
+            sts  >SCRATCH_RAM + 10
+            lds  >SCRATCH_RAM + 10
             cmps #$1800
             pulu s
             lbne t02_fail
@@ -352,25 +343,25 @@ t03_direct:
             setdp $10
 
             lda  #$77
-            sta  <$1000
+            sta  <SCRATCH_RAM
             clra
-            lda  <$1000
+            lda  <SCRATCH_RAM
             cmpa #$77
-            lbne t03_fail
+            bne t03_fail
 
             ldb  #$88
-            stb  <$1001
+            stb  <SCRATCH_RAM + 1
             clrb
-            ldb  <$1001
+            ldb  <SCRATCH_RAM + 1
             cmpb #$88
-            lbne t03_fail
+            bne t03_fail
 
             ldx  #$ABCD
-            stx  <$1002
+            stx  <SCRATCH_RAM + 2
             ldx  #$0000
-            ldx  <$1002
+            ldx  <SCRATCH_RAM + 2
             cmpx #$ABCD
-            lbne t03_fail
+            bne t03_fail
 
             ; Restore DP before returning
             clra
@@ -393,15 +384,15 @@ t03_fail:
 t04_indexed:
             ; Prepare two bytes of test data
             lda  #$12
-            sta  >$1010
+            sta  >SCRATCH_RAM + 16
             lda  #$34
-            sta  >$1011
+            sta  >SCRATCH_RAM + 17
             ; Store pointer $1010 at $1012-$1013 for the extended-indirect test
-            ldx  #$1010
-            stx  >$1012
+            ldx  #SCRATCH_RAM + 16
+            stx  >SCRATCH_RAM + 18
 
             ; ,X  zero-offset indexed
-            ldx  #$1010
+            ldx  #SCRATCH_RAM + 16
             lda  ,x
             cmpa #$12
             lbne t04_fail
@@ -412,39 +403,39 @@ t04_indexed:
             lbne t04_fail
 
             ; ,X+  post-increment by 1
-            ldx  #$1010
+            ldx  #SCRATCH_RAM + 16
             lda  ,x+
             cmpa #$12
             lbne t04_fail
-            cmpx #$1011
+            cmpx #SCRATCH_RAM + 17
             lbne t04_fail
 
             ; ,X++  post-increment by 2
-            ldx  #$1010
+            ldx  #SCRATCH_RAM + 16
             lda  ,x++
             cmpa #$12
             lbne t04_fail
-            cmpx #$1012
+            cmpx #SCRATCH_RAM + 18
             lbne t04_fail
 
             ; ,-X  pre-decrement by 1
-            ldx  #$1011
+            ldx  #SCRATCH_RAM + 17
             lda  ,-x
             cmpa #$12
             lbne t04_fail
-            cmpx #$1010
+            cmpx #SCRATCH_RAM + 16
             lbne t04_fail
 
             ; ,--X  pre-decrement by 2
-            ldx  #$1012
+            ldx  #SCRATCH_RAM + 18
             lda  ,--x
             cmpa #$12
             lbne t04_fail
-            cmpx #$1010
+            cmpx #SCRATCH_RAM + 16
             lbne t04_fail
 
             ; [>$1012]  extended indirect: reads address from $1012, then data
-            lda  [>$1012]
+            lda  [>SCRATCH_RAM + 18]
             cmpa #$12
             lbne t04_fail
 
@@ -475,12 +466,12 @@ t05_alu_add:
             ldb  #$20
             addb #$30
             cmpb #$50
-            lbne t05_fail
+            bne t05_fail
 
             ldd  #$1000
             addd #$0234
             cmpd #$1234
-            lbne t05_fail
+            bne t05_fail
 
             ; ADCA: produce carry via $FF+$01, then add with that carry
             andcc #$FE
@@ -489,7 +480,7 @@ t05_alu_add:
             lda  #$00
             adca #$00              ; $00 + $00 + C(1) = $01
             cmpa #$01
-            lbne t05_fail
+            bne t05_fail
 
             ; ADCB: same pattern
             andcc #$FE
@@ -498,7 +489,7 @@ t05_alu_add:
             ldb  #$01
             adcb #$01              ; $01 + $01 + C(1) = $03
             cmpb #$03
-            lbne t05_fail
+            bne t05_fail
 
             rts
 
@@ -515,7 +506,7 @@ t06_add_flags:
             andcc #$FE
             lda  #$FE
             adda #$02
-            lbne t06_fail          ; Z should be set
+            bne t06_fail          ; Z should be set
             bcc  t06_fail          ; C should be set
 
             ; N and V: $70 + $70 = $E0, N=1 V=1 (positive + positive = negative)
@@ -550,17 +541,17 @@ t07_alu_sub:
             lda  #$50
             suba #$10
             cmpa #$40
-            lbne t07_fail
+            bne t07_fail
 
             ldb  #$FF
             subb #$0F
             cmpb #$F0
-            lbne t07_fail
+            bne t07_fail
 
             ldd  #$1000
             subd #$0100
             cmpd #$0F00
-            lbne t07_fail
+            bne t07_fail
 
             ; SBCA: cause borrow, then subtract with that borrow
             andcc #$FE
@@ -569,7 +560,7 @@ t07_alu_sub:
             lda  #$05
             sbca #$02              ; $05 - $02 - C(1) = $02
             cmpa #$02
-            lbne t07_fail
+            bne t07_fail
 
             ; SBCB
             andcc #$FE
@@ -578,7 +569,7 @@ t07_alu_sub:
             ldb  #$20
             sbcb #$05              ; $20 - $05 - C(1) = $1A
             cmpb #$1A
-            lbne t07_fail
+            bne t07_fail
 
             rts
 
@@ -594,7 +585,7 @@ t08_sub_flags:
             ; Z: $10 - $10 = $00
             lda  #$10
             suba #$10
-            lbne t08_fail          ; Z should be set
+            bne t08_fail          ; Z should be set
 
             ; N and C (borrow): $05 - $10 = $F5
             lda  #$05
@@ -679,9 +670,9 @@ t10_unary:
             lbne t10_fail
 
             lda  #$55
-            sta  >$1000
-            clr  >$1000
-            lda  >$1000
+            sta  >SCRATCH_RAM
+            clr  >SCRATCH_RAM
+            lda  >SCRATCH_RAM
             lbne t10_fail
 
             lda  #$55
@@ -731,16 +722,16 @@ t10_unary:
             bpl  t10_fail          ; N should be set
 
             lda  #$10
-            sta  >$1001
-            inc  >$1001
-            lda  >$1001
+            sta  >SCRATCH_RAM + 1
+            inc  >SCRATCH_RAM + 1
+            lda  >SCRATCH_RAM + 1
             cmpa #$11
             lbne t10_fail
 
             lda  #$05
-            sta  >$1002
-            dec  >$1002
-            lda  >$1002
+            sta  >SCRATCH_RAM + 2
+            dec  >SCRATCH_RAM + 2
+            lda  >SCRATCH_RAM + 2
             cmpa #$04
             lbne t10_fail
 
@@ -1165,25 +1156,25 @@ t18_exg:
             ldb  #$34
             exg  a,b
             cmpa #$34
-            lbne t18_fail
+            bne t18_fail
             cmpb #$12
-            lbne t18_fail
+            bne t18_fail
 
             ldd  #$ABCD
             ldx  #$1234
             exg  d,x
             cmpd #$1234
-            lbne t18_fail
+            bne t18_fail
             cmpx #$ABCD
-            lbne t18_fail
+            bne t18_fail
 
             ldx  #$CAFE
             ldy  #$BABE
             exg  x,y
             cmpx #$BABE
-            lbne t18_fail
+            bne t18_fail
             cmpy #$CAFE
-            lbne t18_fail
+            bne t18_fail
 
             rts
 
