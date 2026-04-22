@@ -17,7 +17,7 @@
 //! source: <https://github.com/hoglet67/6809Decoder/wiki/Undocumented-6809-Behaviours>
 
 use crate::alu;
-use crate::bus::Bus;
+use crate::bus::Memory;
 use crate::cpu::Cpu;
 use crate::registers::{CC_C, CC_F, CC_H, CC_I, CC_N, CC_V, CC_Z};
 
@@ -50,7 +50,7 @@ pub(super) fn cycles(opcode: u8) -> u8 {
     PAGE0_CYCLES[opcode as usize]
 }
 
-pub fn execute(cpu: &mut Cpu, bus: &mut impl Bus, opcode: u8) {
+pub fn execute(cpu: &mut Cpu, mem: &mut impl Memory, opcode: u8) {
     cpu.cycles += PAGE0_CYCLES[opcode as usize] as u64;
 
     match opcode {
@@ -59,71 +59,71 @@ pub fn execute(cpu: &mut Cpu, bus: &mut impl Bus, opcode: u8) {
         // =================================================================
         0x00 | 0x01 => {
             // NEG direct (0x00) and (0x01, undoc)
-            let addr = cpu.addr_direct(bus);
-            let val = bus.read(addr);
+            let addr = cpu.addr_direct(mem);
+            let val = mem.read(addr);
             let r = alu::neg8(val, &mut cpu.reg.cc);
-            bus.write(addr, r);
+            mem.write(addr, r);
         }
         0x02 => {
             // XNC direct (undocumented)
             // This instruction behaves like NEG if C=0 or COM if C=1
-            let addr = cpu.addr_direct(bus);
-            let val = bus.read(addr);
+            let addr = cpu.addr_direct(mem);
+            let val = mem.read(addr);
             let r = if cpu.reg.cc.carry() {
                 alu::com8(val, &mut cpu.reg.cc)
             } else {
                 alu::neg8(val, &mut cpu.reg.cc)
             };
-            bus.write(addr, r);
+            mem.write(addr, r);
         }
         0x03 => {
             // COM direct
-            let addr = cpu.addr_direct(bus);
-            let val = bus.read(addr);
+            let addr = cpu.addr_direct(mem);
+            let val = mem.read(addr);
             let r = alu::com8(val, &mut cpu.reg.cc);
-            bus.write(addr, r);
+            mem.write(addr, r);
         }
         0x04 | 0x05 => {
             // LSR direct (0x04) and (0x05, undoc)
-            let addr = cpu.addr_direct(bus);
-            let val = bus.read(addr);
+            let addr = cpu.addr_direct(mem);
+            let val = mem.read(addr);
             let r = alu::lsr8(val, &mut cpu.reg.cc);
-            bus.write(addr, r);
+            mem.write(addr, r);
         }
         0x06 => {
             // ROR direct
-            let addr = cpu.addr_direct(bus);
-            let val = bus.read(addr);
+            let addr = cpu.addr_direct(mem);
+            let val = mem.read(addr);
             let r = alu::ror8(val, &mut cpu.reg.cc);
-            bus.write(addr, r);
+            mem.write(addr, r);
         }
         0x07 => {
             // ASR direct
-            let addr = cpu.addr_direct(bus);
-            let val = bus.read(addr);
+            let addr = cpu.addr_direct(mem);
+            let val = mem.read(addr);
             let r = alu::asr8(val, &mut cpu.reg.cc);
-            bus.write(addr, r);
+            mem.write(addr, r);
         }
         0x08 => {
             // ASL/LSL direct
-            let addr = cpu.addr_direct(bus);
-            let val = bus.read(addr);
+            let addr = cpu.addr_direct(mem);
+            let val = mem.read(addr);
             let r = alu::asl8(val, &mut cpu.reg.cc);
-            bus.write(addr, r);
+            mem.write(addr, r);
         }
         0x09 => {
             // ROL direct
-            let addr = cpu.addr_direct(bus);
-            let val = bus.read(addr);
+            let addr = cpu.addr_direct(mem);
+            let val = mem.read(addr);
             let r = alu::rol8(val, &mut cpu.reg.cc);
-            bus.write(addr, r);
+            mem.write(addr, r);
         }
         0x0A => {
             // DEC direct
-            let addr = cpu.addr_direct(bus);
-            let val = bus.read(addr);
+            let addr = cpu.addr_direct(mem);
+            let val = mem.read(addr);
             let r = alu::dec8(val, &mut cpu.reg.cc);
-            bus.write(addr, r);
+            mem.write(addr, r);
         }
         0x0B => {
             // XDEC direct (undocumented)
@@ -135,34 +135,34 @@ pub fn execute(cpu: &mut Cpu, bus: &mut impl Bus, opcode: u8) {
             // V - set if the operand is 0x80, otherwise cleared (the same as DEC)
             // C - cleared if the operand is zero, otherwise set (different to DEC)
             // all other flags unchanged
-            let addr = cpu.addr_direct(bus);
-            let val = bus.read(addr);
+            let addr = cpu.addr_direct(mem);
+            let val = mem.read(addr);
             let r = alu::dec8(val, &mut cpu.reg.cc);
             cpu.reg.cc.set_carry(val != 0);
-            bus.write(addr, r);
+            mem.write(addr, r);
         }
         0x0C => {
             // INC direct
-            let addr = cpu.addr_direct(bus);
-            let val = bus.read(addr);
+            let addr = cpu.addr_direct(mem);
+            let val = mem.read(addr);
             let r = alu::inc8(val, &mut cpu.reg.cc);
-            bus.write(addr, r);
+            mem.write(addr, r);
         }
         0x0D => {
             // TST direct
-            let addr = cpu.addr_direct(bus);
-            let val = bus.read(addr);
+            let addr = cpu.addr_direct(mem);
+            let val = mem.read(addr);
             alu::tst8(val, &mut cpu.reg.cc);
         }
         0x0E => {
             // JMP direct
-            cpu.reg.pc = cpu.addr_direct(bus);
+            cpu.reg.pc = cpu.addr_direct(mem);
         }
         0x0F => {
             // CLR direct
-            let addr = cpu.addr_direct(bus);
+            let addr = cpu.addr_direct(mem);
             let r = alu::clr8(&mut cpu.reg.cc);
-            bus.write(addr, r);
+            mem.write(addr, r);
         }
 
         // =================================================================
@@ -179,13 +179,13 @@ pub fn execute(cpu: &mut Cpu, bus: &mut impl Bus, opcode: u8) {
         }
         0x16 => {
             // LBRA
-            let addr = cpu.addr_relative16(bus);
+            let addr = cpu.addr_relative16(mem);
             cpu.reg.pc = addr;
         }
         0x17 => {
             // LBSR
-            let addr = cpu.addr_relative16(bus);
-            cpu.push_word_s(bus, cpu.reg.pc);
+            let addr = cpu.addr_relative16(mem);
+            cpu.push_word_s(mem, cpu.reg.pc);
             cpu.reg.pc = addr;
         }
         0x18 => {
@@ -201,7 +201,7 @@ pub fn execute(cpu: &mut Cpu, bus: &mut impl Bus, opcode: u8) {
             // Z' = (V & B1)
             // V' = (C & B0) | (Z & B2)
             // C' = 0
-            let post = bus.read(cpu.reg.pc);
+            let post = mem.read(cpu.reg.pc);
             let cc = cpu.reg.cc.to_byte();
             let post_cc = cc & post;
             cpu.reg.cc.set_entire(post_cc & CC_F != 0);
@@ -223,13 +223,13 @@ pub fn execute(cpu: &mut Cpu, bus: &mut impl Bus, opcode: u8) {
         }
         0x1A => {
             // ORCC immediate
-            let val = cpu.fetch_byte(bus);
+            let val = cpu.fetch_byte(mem);
             cpu.reg.cc.or_with(val);
         }
         0x1B => {} // NOP (undocumented)
         0x1C => {
             // ANDCC immediate
-            let val = cpu.fetch_byte(bus);
+            let val = cpu.fetch_byte(mem);
             cpu.reg.cc.and_with(val);
         }
         0x1D => {
@@ -240,12 +240,12 @@ pub fn execute(cpu: &mut Cpu, bus: &mut impl Bus, opcode: u8) {
         }
         0x1E => {
             // EXG
-            let post = cpu.fetch_byte(bus);
+            let post = cpu.fetch_byte(mem);
             exg(cpu, post);
         }
         0x1F => {
             // TFR
-            let post = cpu.fetch_byte(bus);
+            let post = cpu.fetch_byte(mem);
             tfr(cpu, post);
         }
 
@@ -254,108 +254,108 @@ pub fn execute(cpu: &mut Cpu, bus: &mut impl Bus, opcode: u8) {
         // =================================================================
         0x20 => {
             // BRA
-            let addr = cpu.addr_relative8(bus);
+            let addr = cpu.addr_relative8(mem);
             cpu.reg.pc = addr;
         }
         0x21 => {
             // BRN
-            let _addr = cpu.addr_relative8(bus);
+            let _addr = cpu.addr_relative8(mem);
             // never branch
         }
         0x22 => {
             // BHI: !(C|Z)
-            let addr = cpu.addr_relative8(bus);
+            let addr = cpu.addr_relative8(mem);
             if !cpu.reg.cc.carry() && !cpu.reg.cc.zero() {
                 cpu.reg.pc = addr;
             }
         }
         0x23 => {
             // BLS: C|Z
-            let addr = cpu.addr_relative8(bus);
+            let addr = cpu.addr_relative8(mem);
             if cpu.reg.cc.carry() || cpu.reg.cc.zero() {
                 cpu.reg.pc = addr;
             }
         }
         0x24 => {
             // BHS/BCC: !C
-            let addr = cpu.addr_relative8(bus);
+            let addr = cpu.addr_relative8(mem);
             if !cpu.reg.cc.carry() {
                 cpu.reg.pc = addr;
             }
         }
         0x25 => {
             // BLO/BCS: C
-            let addr = cpu.addr_relative8(bus);
+            let addr = cpu.addr_relative8(mem);
             if cpu.reg.cc.carry() {
                 cpu.reg.pc = addr;
             }
         }
         0x26 => {
             // BNE: !Z
-            let addr = cpu.addr_relative8(bus);
+            let addr = cpu.addr_relative8(mem);
             if !cpu.reg.cc.zero() {
                 cpu.reg.pc = addr;
             }
         }
         0x27 => {
             // BEQ: Z
-            let addr = cpu.addr_relative8(bus);
+            let addr = cpu.addr_relative8(mem);
             if cpu.reg.cc.zero() {
                 cpu.reg.pc = addr;
             }
         }
         0x28 => {
             // BVC: !V
-            let addr = cpu.addr_relative8(bus);
+            let addr = cpu.addr_relative8(mem);
             if !cpu.reg.cc.overflow() {
                 cpu.reg.pc = addr;
             }
         }
         0x29 => {
             // BVS: V
-            let addr = cpu.addr_relative8(bus);
+            let addr = cpu.addr_relative8(mem);
             if cpu.reg.cc.overflow() {
                 cpu.reg.pc = addr;
             }
         }
         0x2A => {
             // BPL: !N
-            let addr = cpu.addr_relative8(bus);
+            let addr = cpu.addr_relative8(mem);
             if !cpu.reg.cc.negative() {
                 cpu.reg.pc = addr;
             }
         }
         0x2B => {
             // BMI: N
-            let addr = cpu.addr_relative8(bus);
+            let addr = cpu.addr_relative8(mem);
             if cpu.reg.cc.negative() {
                 cpu.reg.pc = addr;
             }
         }
         0x2C => {
             // BGE: N==V  (N*V + !N*!V)
-            let addr = cpu.addr_relative8(bus);
+            let addr = cpu.addr_relative8(mem);
             if cpu.reg.cc.negative() == cpu.reg.cc.overflow() {
                 cpu.reg.pc = addr;
             }
         }
         0x2D => {
             // BLT: N!=V  (N*!V + !N*V)
-            let addr = cpu.addr_relative8(bus);
+            let addr = cpu.addr_relative8(mem);
             if cpu.reg.cc.negative() != cpu.reg.cc.overflow() {
                 cpu.reg.pc = addr;
             }
         }
         0x2E => {
             // BGT: !Z && N==V
-            let addr = cpu.addr_relative8(bus);
+            let addr = cpu.addr_relative8(mem);
             if !cpu.reg.cc.zero() && cpu.reg.cc.negative() == cpu.reg.cc.overflow() {
                 cpu.reg.pc = addr;
             }
         }
         0x2F => {
             // BLE: Z || N!=V
-            let addr = cpu.addr_relative8(bus);
+            let addr = cpu.addr_relative8(mem);
             if cpu.reg.cc.zero() || cpu.reg.cc.negative() != cpu.reg.cc.overflow() {
                 cpu.reg.pc = addr;
             }
@@ -366,59 +366,59 @@ pub fn execute(cpu: &mut Cpu, bus: &mut impl Bus, opcode: u8) {
         // =================================================================
         0x30 => {
             // LEAX indexed
-            let (ea, extra) = cpu.addr_indexed(bus);
+            let (ea, extra) = cpu.addr_indexed(mem);
             cpu.reg.x = ea;
             cpu.reg.cc.set_zero(ea == 0);
             cpu.cycles += extra as u64;
         }
         0x31 => {
             // LEAY indexed
-            let (ea, extra) = cpu.addr_indexed(bus);
+            let (ea, extra) = cpu.addr_indexed(mem);
             cpu.reg.y = ea;
             cpu.reg.cc.set_zero(ea == 0);
             cpu.cycles += extra as u64;
         }
         0x32 => {
             // LEAS indexed
-            let (ea, extra) = cpu.addr_indexed(bus);
+            let (ea, extra) = cpu.addr_indexed(mem);
             cpu.reg.s = ea;
             cpu.arm_nmi();
             cpu.cycles += extra as u64;
         }
         0x33 => {
             // LEAU indexed
-            let (ea, extra) = cpu.addr_indexed(bus);
+            let (ea, extra) = cpu.addr_indexed(mem);
             cpu.reg.u = ea;
             cpu.cycles += extra as u64;
         }
         0x34 => {
             // PSHS
-            let post = cpu.fetch_byte(bus);
-            pshs(cpu, bus, post);
+            let post = cpu.fetch_byte(mem);
+            pshs(cpu, mem, post);
         }
         0x35 => {
             // PULS
-            let post = cpu.fetch_byte(bus);
-            puls(cpu, bus, post);
+            let post = cpu.fetch_byte(mem);
+            puls(cpu, mem, post);
         }
         0x36 => {
             // PSHU
-            let post = cpu.fetch_byte(bus);
-            pshu(cpu, bus, post);
+            let post = cpu.fetch_byte(mem);
+            pshu(cpu, mem, post);
         }
         0x37 => {
             // PULU
-            let post = cpu.fetch_byte(bus);
-            pulu(cpu, bus, post);
+            let post = cpu.fetch_byte(mem);
+            pulu(cpu, mem, post);
         }
         0x38 => {
             // XANDCC immediate (undocumented)
-            let val = cpu.fetch_byte(bus);
+            let val = cpu.fetch_byte(mem);
             cpu.reg.cc.and_with(val);
         }
         0x39 => {
             // RTS
-            cpu.reg.pc = cpu.pull_word_s(bus);
+            cpu.reg.pc = cpu.pull_word_s(mem);
         }
         0x3A => {
             // ABX: X = X + B (unsigned)
@@ -426,28 +426,28 @@ pub fn execute(cpu: &mut Cpu, bus: &mut impl Bus, opcode: u8) {
         }
         0x3B => {
             // RTI
-            let cc = cpu.pull_byte_s(bus);
+            let cc = cpu.pull_byte_s(mem);
             cpu.reg.cc = crate::registers::ConditionCodes::from_byte(cc);
             if cpu.reg.cc.entire() {
                 // Full restore: 15 cycles total (6 base + 9 extra)
-                let a = cpu.pull_byte_s(bus);
+                let a = cpu.pull_byte_s(mem);
                 cpu.reg.set_a(a);
-                let b = cpu.pull_byte_s(bus);
+                let b = cpu.pull_byte_s(mem);
                 cpu.reg.set_b(b);
-                cpu.reg.dp = cpu.pull_byte_s(bus);
-                cpu.reg.x = cpu.pull_word_s(bus);
-                cpu.reg.y = cpu.pull_word_s(bus);
-                cpu.reg.u = cpu.pull_word_s(bus);
+                cpu.reg.dp = cpu.pull_byte_s(mem);
+                cpu.reg.x = cpu.pull_word_s(mem);
+                cpu.reg.y = cpu.pull_word_s(mem);
+                cpu.reg.u = cpu.pull_word_s(mem);
                 cpu.cycles += 9;
             }
-            cpu.reg.pc = cpu.pull_word_s(bus);
+            cpu.reg.pc = cpu.pull_word_s(mem);
         }
         0x3C => {
             // CWAI
-            let post = cpu.fetch_byte(bus);
+            let post = cpu.fetch_byte(mem);
             cpu.reg.cc.and_with(post);
             cpu.reg.cc.set_entire(true);
-            cpu.push_entire_state(bus);
+            cpu.push_entire_state(mem);
             cpu.cwai = true;
         }
         0x3D => {
@@ -465,16 +465,16 @@ pub fn execute(cpu: &mut Cpu, bus: &mut impl Bus, opcode: u8) {
             // the saved machine state.
             // Flags: all flags are unchanged
             // Note: unlike a hardware RESET, the F and I flags are not set.
-            cpu.push_entire_state(bus);
-            cpu.reg.pc = bus.read_word(crate::cpu::VEC_RESET);
+            cpu.push_entire_state(mem);
+            cpu.reg.pc = mem.read_word(crate::cpu::VEC_RESET);
         }
         0x3F => {
             // SWI
             cpu.reg.cc.set_entire(true);
-            cpu.push_entire_state(bus);
+            cpu.push_entire_state(mem);
             cpu.reg.cc.set_irq_inhibit(true);
             cpu.reg.cc.set_firq_inhibit(true);
-            cpu.reg.pc = bus.read_word(crate::cpu::VEC_SWI);
+            cpu.reg.pc = mem.read_word(crate::cpu::VEC_SWI);
         }
 
         // =================================================================
@@ -670,74 +670,74 @@ pub fn execute(cpu: &mut Cpu, bus: &mut impl Bus, opcode: u8) {
         // =================================================================
         0x60 | 0x61 => {
             // NEG indexed (0x60) and (0x61, undoc)
-            let (addr, ex) = cpu.addr_indexed(bus);
+            let (addr, ex) = cpu.addr_indexed(mem);
             cpu.cycles += ex as u64;
-            let val = bus.read(addr);
+            let val = mem.read(addr);
             let r = alu::neg8(val, &mut cpu.reg.cc);
-            bus.write(addr, r);
+            mem.write(addr, r);
         }
         0x62 => {
             // XNC indexed (undocumented)
             // This instruction behaves like NEG if C=0 or COM if C=1
-            let (addr, ex) = cpu.addr_indexed(bus);
+            let (addr, ex) = cpu.addr_indexed(mem);
             cpu.cycles += ex as u64;
-            let val = bus.read(addr);
+            let val = mem.read(addr);
             let r = if cpu.reg.cc.carry() {
                 alu::com8(val, &mut cpu.reg.cc)
             } else {
                 alu::neg8(val, &mut cpu.reg.cc)
             };
-            bus.write(addr, r);
+            mem.write(addr, r);
         }
         0x63 => {
-            let (addr, ex) = cpu.addr_indexed(bus);
+            let (addr, ex) = cpu.addr_indexed(mem);
             cpu.cycles += ex as u64;
-            let val = bus.read(addr);
+            let val = mem.read(addr);
             let r = alu::com8(val, &mut cpu.reg.cc);
-            bus.write(addr, r);
+            mem.write(addr, r);
         }
         0x64 | 0x65 => {
             // LSR indexed (0x64) and (0x65, undoc)
-            let (addr, ex) = cpu.addr_indexed(bus);
+            let (addr, ex) = cpu.addr_indexed(mem);
             cpu.cycles += ex as u64;
-            let val = bus.read(addr);
+            let val = mem.read(addr);
             let r = alu::lsr8(val, &mut cpu.reg.cc);
-            bus.write(addr, r);
+            mem.write(addr, r);
         }
         0x66 => {
-            let (addr, ex) = cpu.addr_indexed(bus);
+            let (addr, ex) = cpu.addr_indexed(mem);
             cpu.cycles += ex as u64;
-            let val = bus.read(addr);
+            let val = mem.read(addr);
             let r = alu::ror8(val, &mut cpu.reg.cc);
-            bus.write(addr, r);
+            mem.write(addr, r);
         }
         0x67 => {
-            let (addr, ex) = cpu.addr_indexed(bus);
+            let (addr, ex) = cpu.addr_indexed(mem);
             cpu.cycles += ex as u64;
-            let val = bus.read(addr);
+            let val = mem.read(addr);
             let r = alu::asr8(val, &mut cpu.reg.cc);
-            bus.write(addr, r);
+            mem.write(addr, r);
         }
         0x68 => {
-            let (addr, ex) = cpu.addr_indexed(bus);
+            let (addr, ex) = cpu.addr_indexed(mem);
             cpu.cycles += ex as u64;
-            let val = bus.read(addr);
+            let val = mem.read(addr);
             let r = alu::asl8(val, &mut cpu.reg.cc);
-            bus.write(addr, r);
+            mem.write(addr, r);
         }
         0x69 => {
-            let (addr, ex) = cpu.addr_indexed(bus);
+            let (addr, ex) = cpu.addr_indexed(mem);
             cpu.cycles += ex as u64;
-            let val = bus.read(addr);
+            let val = mem.read(addr);
             let r = alu::rol8(val, &mut cpu.reg.cc);
-            bus.write(addr, r);
+            mem.write(addr, r);
         }
         0x6A => {
-            let (addr, ex) = cpu.addr_indexed(bus);
+            let (addr, ex) = cpu.addr_indexed(mem);
             cpu.cycles += ex as u64;
-            let val = bus.read(addr);
+            let val = mem.read(addr);
             let r = alu::dec8(val, &mut cpu.reg.cc);
-            bus.write(addr, r);
+            mem.write(addr, r);
         }
         0x6B => {
             // XDEC indexed (undocumented)
@@ -749,38 +749,38 @@ pub fn execute(cpu: &mut Cpu, bus: &mut impl Bus, opcode: u8) {
             // V - set if the operand is 0x80, otherwise cleared (the same as DEC)
             // C - cleared if the operand is zero, otherwise set (different to DEC)
             // all other flags unchanged
-            let (addr, ex) = cpu.addr_indexed(bus);
+            let (addr, ex) = cpu.addr_indexed(mem);
             cpu.cycles += ex as u64;
-            let val = bus.read(addr);
+            let val = mem.read(addr);
             let r = alu::dec8(val, &mut cpu.reg.cc);
             cpu.reg.cc.set_carry(val != 0);
-            bus.write(addr, r);
+            mem.write(addr, r);
         }
         0x6C => {
-            let (addr, ex) = cpu.addr_indexed(bus);
+            let (addr, ex) = cpu.addr_indexed(mem);
             cpu.cycles += ex as u64;
-            let val = bus.read(addr);
+            let val = mem.read(addr);
             let r = alu::inc8(val, &mut cpu.reg.cc);
-            bus.write(addr, r);
+            mem.write(addr, r);
         }
         0x6D => {
-            let (addr, ex) = cpu.addr_indexed(bus);
+            let (addr, ex) = cpu.addr_indexed(mem);
             cpu.cycles += ex as u64;
-            let val = bus.read(addr);
+            let val = mem.read(addr);
             alu::tst8(val, &mut cpu.reg.cc);
         }
         0x6E => {
             // JMP indexed
-            let (addr, ex) = cpu.addr_indexed(bus);
+            let (addr, ex) = cpu.addr_indexed(mem);
             cpu.cycles += ex as u64;
             cpu.reg.pc = addr;
         }
         0x6F => {
             // CLR indexed
-            let (addr, ex) = cpu.addr_indexed(bus);
+            let (addr, ex) = cpu.addr_indexed(mem);
             cpu.cycles += ex as u64;
             let r = alu::clr8(&mut cpu.reg.cc);
-            bus.write(addr, r);
+            mem.write(addr, r);
         }
 
         // =================================================================
@@ -788,65 +788,65 @@ pub fn execute(cpu: &mut Cpu, bus: &mut impl Bus, opcode: u8) {
         // =================================================================
         0x70 | 0x71 => {
             // NEG extended (0x70) and (0x71, undoc)
-            let addr = cpu.addr_extended(bus);
-            let val = bus.read(addr);
+            let addr = cpu.addr_extended(mem);
+            let val = mem.read(addr);
             let r = alu::neg8(val, &mut cpu.reg.cc);
-            bus.write(addr, r);
+            mem.write(addr, r);
         }
         0x72 => {
             // XNC extended (undocumented)
             // This instruction behaves like NEG if C=0 or COM if C=1
-            let addr = cpu.addr_extended(bus);
-            let val = bus.read(addr);
+            let addr = cpu.addr_extended(mem);
+            let val = mem.read(addr);
             let r = if cpu.reg.cc.carry() {
                 alu::com8(val, &mut cpu.reg.cc)
             } else {
                 alu::neg8(val, &mut cpu.reg.cc)
             };
-            bus.write(addr, r);
+            mem.write(addr, r);
         }
         0x73 => {
-            let addr = cpu.addr_extended(bus);
-            let val = bus.read(addr);
+            let addr = cpu.addr_extended(mem);
+            let val = mem.read(addr);
             let r = alu::com8(val, &mut cpu.reg.cc);
-            bus.write(addr, r);
+            mem.write(addr, r);
         }
         0x74 | 0x75 => {
             // LSR extended (0x74) and (0x75, undoc)
-            let addr = cpu.addr_extended(bus);
-            let val = bus.read(addr);
+            let addr = cpu.addr_extended(mem);
+            let val = mem.read(addr);
             let r = alu::lsr8(val, &mut cpu.reg.cc);
-            bus.write(addr, r);
+            mem.write(addr, r);
         }
         0x76 => {
-            let addr = cpu.addr_extended(bus);
-            let val = bus.read(addr);
+            let addr = cpu.addr_extended(mem);
+            let val = mem.read(addr);
             let r = alu::ror8(val, &mut cpu.reg.cc);
-            bus.write(addr, r);
+            mem.write(addr, r);
         }
         0x77 => {
-            let addr = cpu.addr_extended(bus);
-            let val = bus.read(addr);
+            let addr = cpu.addr_extended(mem);
+            let val = mem.read(addr);
             let r = alu::asr8(val, &mut cpu.reg.cc);
-            bus.write(addr, r);
+            mem.write(addr, r);
         }
         0x78 => {
-            let addr = cpu.addr_extended(bus);
-            let val = bus.read(addr);
+            let addr = cpu.addr_extended(mem);
+            let val = mem.read(addr);
             let r = alu::asl8(val, &mut cpu.reg.cc);
-            bus.write(addr, r);
+            mem.write(addr, r);
         }
         0x79 => {
-            let addr = cpu.addr_extended(bus);
-            let val = bus.read(addr);
+            let addr = cpu.addr_extended(mem);
+            let val = mem.read(addr);
             let r = alu::rol8(val, &mut cpu.reg.cc);
-            bus.write(addr, r);
+            mem.write(addr, r);
         }
         0x7A => {
-            let addr = cpu.addr_extended(bus);
-            let val = bus.read(addr);
+            let addr = cpu.addr_extended(mem);
+            let val = mem.read(addr);
             let r = alu::dec8(val, &mut cpu.reg.cc);
-            bus.write(addr, r);
+            mem.write(addr, r);
         }
         0x7B => {
             // XDEC extended (undocumented)
@@ -858,120 +858,120 @@ pub fn execute(cpu: &mut Cpu, bus: &mut impl Bus, opcode: u8) {
             // V - set if the operand is 0x80, otherwise cleared (the same as DEC)
             // C - cleared if the operand is zero, otherwise set (different to DEC)
             // all other flags unchanged
-            let addr = cpu.addr_extended(bus);
-            let val = bus.read(addr);
+            let addr = cpu.addr_extended(mem);
+            let val = mem.read(addr);
             let r = alu::dec8(val, &mut cpu.reg.cc);
             cpu.reg.cc.set_carry(val != 0);
-            bus.write(addr, r);
+            mem.write(addr, r);
         }
         0x7C => {
-            let addr = cpu.addr_extended(bus);
-            let val = bus.read(addr);
+            let addr = cpu.addr_extended(mem);
+            let val = mem.read(addr);
             let r = alu::inc8(val, &mut cpu.reg.cc);
-            bus.write(addr, r);
+            mem.write(addr, r);
         }
         0x7D => {
-            let addr = cpu.addr_extended(bus);
-            let val = bus.read(addr);
+            let addr = cpu.addr_extended(mem);
+            let val = mem.read(addr);
             alu::tst8(val, &mut cpu.reg.cc);
         }
         0x7E => {
             // JMP extended
-            cpu.reg.pc = cpu.addr_extended(bus);
+            cpu.reg.pc = cpu.addr_extended(mem);
         }
         0x7F => {
             // CLR
-            let addr = cpu.addr_extended(bus);
+            let addr = cpu.addr_extended(mem);
             let r = alu::clr8(&mut cpu.reg.cc);
-            bus.write(addr, r);
+            mem.write(addr, r);
         }
 
         // =================================================================
         // 0x80..0x8F — Immediate A / D / X
         // =================================================================
         0x80 => {
-            let v = cpu.fetch_byte(bus);
+            let v = cpu.fetch_byte(mem);
             let a = cpu.reg.a();
             let r = alu::sub8(a, v, &mut cpu.reg.cc);
             cpu.reg.set_a(r);
         }
         0x81 => {
             // CMPA immediate
-            let v = cpu.fetch_byte(bus);
+            let v = cpu.fetch_byte(mem);
             let a = cpu.reg.a();
             alu::sub8(a, v, &mut cpu.reg.cc);
         }
         0x82 => {
-            let v = cpu.fetch_byte(bus);
+            let v = cpu.fetch_byte(mem);
             let a = cpu.reg.a();
             let r = alu::sbc8(a, v, &mut cpu.reg.cc);
             cpu.reg.set_a(r);
         }
         0x83 => {
             // SUBD immediate
-            let v = cpu.fetch_word(bus);
+            let v = cpu.fetch_word(mem);
             let d = cpu.reg.d;
             let r = alu::sub16(d, v, &mut cpu.reg.cc);
             cpu.reg.d = r;
         }
         0x84 => {
-            let v = cpu.fetch_byte(bus);
+            let v = cpu.fetch_byte(mem);
             let a = cpu.reg.a();
             let r = alu::and8(a, v, &mut cpu.reg.cc);
             cpu.reg.set_a(r);
         }
         0x85 => {
             // BITA immediate
-            let v = cpu.fetch_byte(bus);
+            let v = cpu.fetch_byte(mem);
             let a = cpu.reg.a();
             alu::and8(a, v, &mut cpu.reg.cc);
         }
         0x86 => {
             // LDA immediate
-            let v = cpu.fetch_byte(bus);
+            let v = cpu.fetch_byte(mem);
             alu::ld8_flags(v, &mut cpu.reg.cc);
             cpu.reg.set_a(v);
         }
         // 0x87 illegal
         0x88 => {
-            let v = cpu.fetch_byte(bus);
+            let v = cpu.fetch_byte(mem);
             let a = cpu.reg.a();
             let r = alu::eor8(a, v, &mut cpu.reg.cc);
             cpu.reg.set_a(r);
         }
         0x89 => {
-            let v = cpu.fetch_byte(bus);
+            let v = cpu.fetch_byte(mem);
             let a = cpu.reg.a();
             let r = alu::adc8(a, v, &mut cpu.reg.cc);
             cpu.reg.set_a(r);
         }
         0x8A => {
-            let v = cpu.fetch_byte(bus);
+            let v = cpu.fetch_byte(mem);
             let a = cpu.reg.a();
             let r = alu::or8(a, v, &mut cpu.reg.cc);
             cpu.reg.set_a(r);
         }
         0x8B => {
-            let v = cpu.fetch_byte(bus);
+            let v = cpu.fetch_byte(mem);
             let a = cpu.reg.a();
             let r = alu::add8(a, v, &mut cpu.reg.cc);
             cpu.reg.set_a(r);
         }
         0x8C => {
             // CMPX immediate
-            let v = cpu.fetch_word(bus);
+            let v = cpu.fetch_word(mem);
             let x = cpu.reg.x;
             alu::sub16(x, v, &mut cpu.reg.cc);
         }
         0x8D => {
             // BSR immediate
-            let addr = cpu.addr_relative8(bus);
-            cpu.push_word_s(bus, cpu.reg.pc);
+            let addr = cpu.addr_relative8(mem);
+            cpu.push_word_s(mem, cpu.reg.pc);
             cpu.reg.pc = addr;
         }
         0x8E => {
             // LDX immediate
-            let v = cpu.fetch_word(bus);
+            let v = cpu.fetch_word(mem);
             alu::ld16_flags(v, &mut cpu.reg.cc);
             cpu.reg.x = v;
         }
@@ -981,416 +981,416 @@ pub fn execute(cpu: &mut Cpu, bus: &mut impl Bus, opcode: u8) {
         // 0x90..0x9F — Direct A / D / X
         // =================================================================
         0x90 => {
-            let addr = cpu.addr_direct(bus);
-            let v = bus.read(addr);
+            let addr = cpu.addr_direct(mem);
+            let v = mem.read(addr);
             let a = cpu.reg.a();
             let r = alu::sub8(a, v, &mut cpu.reg.cc);
             cpu.reg.set_a(r);
         }
         0x91 => {
-            let addr = cpu.addr_direct(bus);
-            let v = bus.read(addr);
+            let addr = cpu.addr_direct(mem);
+            let v = mem.read(addr);
             let a = cpu.reg.a();
             alu::sub8(a, v, &mut cpu.reg.cc);
         }
         0x92 => {
-            let addr = cpu.addr_direct(bus);
-            let v = bus.read(addr);
+            let addr = cpu.addr_direct(mem);
+            let v = mem.read(addr);
             let a = cpu.reg.a();
             let r = alu::sbc8(a, v, &mut cpu.reg.cc);
             cpu.reg.set_a(r);
         }
         0x93 => {
-            let addr = cpu.addr_direct(bus);
-            let v = bus.read_word(addr);
+            let addr = cpu.addr_direct(mem);
+            let v = mem.read_word(addr);
             let d = cpu.reg.d;
             let r = alu::sub16(d, v, &mut cpu.reg.cc);
             cpu.reg.d = r;
         }
         0x94 => {
-            let addr = cpu.addr_direct(bus);
-            let v = bus.read(addr);
+            let addr = cpu.addr_direct(mem);
+            let v = mem.read(addr);
             let a = cpu.reg.a();
             let r = alu::and8(a, v, &mut cpu.reg.cc);
             cpu.reg.set_a(r);
         }
         0x95 => {
-            let addr = cpu.addr_direct(bus);
-            let v = bus.read(addr);
+            let addr = cpu.addr_direct(mem);
+            let v = mem.read(addr);
             let a = cpu.reg.a();
             alu::and8(a, v, &mut cpu.reg.cc);
         }
         0x96 => {
-            let addr = cpu.addr_direct(bus);
-            let v = bus.read(addr);
+            let addr = cpu.addr_direct(mem);
+            let v = mem.read(addr);
             alu::ld8_flags(v, &mut cpu.reg.cc);
             cpu.reg.set_a(v);
         }
         0x97 => {
             // STA direct
-            let addr = cpu.addr_direct(bus);
+            let addr = cpu.addr_direct(mem);
             let v = cpu.reg.a();
             alu::ld8_flags(v, &mut cpu.reg.cc);
-            bus.write(addr, v);
+            mem.write(addr, v);
         }
         0x98 => {
-            let addr = cpu.addr_direct(bus);
-            let v = bus.read(addr);
+            let addr = cpu.addr_direct(mem);
+            let v = mem.read(addr);
             let a = cpu.reg.a();
             let r = alu::eor8(a, v, &mut cpu.reg.cc);
             cpu.reg.set_a(r);
         }
         0x99 => {
-            let addr = cpu.addr_direct(bus);
-            let v = bus.read(addr);
+            let addr = cpu.addr_direct(mem);
+            let v = mem.read(addr);
             let a = cpu.reg.a();
             let r = alu::adc8(a, v, &mut cpu.reg.cc);
             cpu.reg.set_a(r);
         }
         0x9A => {
-            let addr = cpu.addr_direct(bus);
-            let v = bus.read(addr);
+            let addr = cpu.addr_direct(mem);
+            let v = mem.read(addr);
             let a = cpu.reg.a();
             let r = alu::or8(a, v, &mut cpu.reg.cc);
             cpu.reg.set_a(r);
         }
         0x9B => {
-            let addr = cpu.addr_direct(bus);
-            let v = bus.read(addr);
+            let addr = cpu.addr_direct(mem);
+            let v = mem.read(addr);
             let a = cpu.reg.a();
             let r = alu::add8(a, v, &mut cpu.reg.cc);
             cpu.reg.set_a(r);
         }
         0x9C => {
-            let addr = cpu.addr_direct(bus);
-            let v = bus.read_word(addr);
+            let addr = cpu.addr_direct(mem);
+            let v = mem.read_word(addr);
             let x = cpu.reg.x;
             alu::sub16(x, v, &mut cpu.reg.cc);
         }
         0x9D => {
             // JSR direct
-            let addr = cpu.addr_direct(bus);
-            cpu.push_word_s(bus, cpu.reg.pc);
+            let addr = cpu.addr_direct(mem);
+            cpu.push_word_s(mem, cpu.reg.pc);
             cpu.reg.pc = addr;
         }
         0x9E => {
-            let addr = cpu.addr_direct(bus);
-            let v = bus.read_word(addr);
+            let addr = cpu.addr_direct(mem);
+            let v = mem.read_word(addr);
             alu::ld16_flags(v, &mut cpu.reg.cc);
             cpu.reg.x = v;
         }
         0x9F => {
-            let addr = cpu.addr_direct(bus);
+            let addr = cpu.addr_direct(mem);
             let v = cpu.reg.x;
             alu::ld16_flags(v, &mut cpu.reg.cc);
-            bus.write_word(addr, v);
+            mem.write_word(addr, v);
         }
 
         // =================================================================
         // 0xA0..0xAF — Indexed A / D / X
         // =================================================================
         0xA0 => {
-            let (addr, ex) = cpu.addr_indexed(bus);
+            let (addr, ex) = cpu.addr_indexed(mem);
             cpu.cycles += ex as u64;
-            let v = bus.read(addr);
+            let v = mem.read(addr);
             let a = cpu.reg.a();
             let r = alu::sub8(a, v, &mut cpu.reg.cc);
             cpu.reg.set_a(r);
         }
         0xA1 => {
-            let (addr, ex) = cpu.addr_indexed(bus);
+            let (addr, ex) = cpu.addr_indexed(mem);
             cpu.cycles += ex as u64;
-            let v = bus.read(addr);
+            let v = mem.read(addr);
             let a = cpu.reg.a();
             alu::sub8(a, v, &mut cpu.reg.cc);
         }
         0xA2 => {
-            let (addr, ex) = cpu.addr_indexed(bus);
+            let (addr, ex) = cpu.addr_indexed(mem);
             cpu.cycles += ex as u64;
-            let v = bus.read(addr);
+            let v = mem.read(addr);
             let a = cpu.reg.a();
             let r = alu::sbc8(a, v, &mut cpu.reg.cc);
             cpu.reg.set_a(r);
         }
         0xA3 => {
-            let (addr, ex) = cpu.addr_indexed(bus);
+            let (addr, ex) = cpu.addr_indexed(mem);
             cpu.cycles += ex as u64;
-            let v = bus.read_word(addr);
+            let v = mem.read_word(addr);
             let d = cpu.reg.d;
             let r = alu::sub16(d, v, &mut cpu.reg.cc);
             cpu.reg.d = r;
         }
         0xA4 => {
-            let (addr, ex) = cpu.addr_indexed(bus);
+            let (addr, ex) = cpu.addr_indexed(mem);
             cpu.cycles += ex as u64;
-            let v = bus.read(addr);
+            let v = mem.read(addr);
             let a = cpu.reg.a();
             let r = alu::and8(a, v, &mut cpu.reg.cc);
             cpu.reg.set_a(r);
         }
         0xA5 => {
-            let (addr, ex) = cpu.addr_indexed(bus);
+            let (addr, ex) = cpu.addr_indexed(mem);
             cpu.cycles += ex as u64;
-            let v = bus.read(addr);
+            let v = mem.read(addr);
             let a = cpu.reg.a();
             alu::and8(a, v, &mut cpu.reg.cc);
         }
         0xA6 => {
-            let (addr, ex) = cpu.addr_indexed(bus);
+            let (addr, ex) = cpu.addr_indexed(mem);
             cpu.cycles += ex as u64;
-            let v = bus.read(addr);
+            let v = mem.read(addr);
             alu::ld8_flags(v, &mut cpu.reg.cc);
             cpu.reg.set_a(v);
         }
         0xA7 => {
-            let (addr, ex) = cpu.addr_indexed(bus);
+            let (addr, ex) = cpu.addr_indexed(mem);
             cpu.cycles += ex as u64;
             let v = cpu.reg.a();
             alu::ld8_flags(v, &mut cpu.reg.cc);
-            bus.write(addr, v);
+            mem.write(addr, v);
         }
         0xA8 => {
             // EORA indexed
-            let (addr, ex) = cpu.addr_indexed(bus);
+            let (addr, ex) = cpu.addr_indexed(mem);
             cpu.cycles += ex as u64;
-            let v = bus.read(addr);
+            let v = mem.read(addr);
             let a = cpu.reg.a();
             let r = alu::eor8(a, v, &mut cpu.reg.cc);
             cpu.reg.set_a(r);
         }
         0xA9 => {
-            let (addr, ex) = cpu.addr_indexed(bus);
+            let (addr, ex) = cpu.addr_indexed(mem);
             cpu.cycles += ex as u64;
-            let v = bus.read(addr);
+            let v = mem.read(addr);
             let a = cpu.reg.a();
             let r = alu::adc8(a, v, &mut cpu.reg.cc);
             cpu.reg.set_a(r);
         }
         0xAA => {
-            let (addr, ex) = cpu.addr_indexed(bus);
+            let (addr, ex) = cpu.addr_indexed(mem);
             cpu.cycles += ex as u64;
-            let v = bus.read(addr);
+            let v = mem.read(addr);
             let a = cpu.reg.a();
             let r = alu::or8(a, v, &mut cpu.reg.cc);
             cpu.reg.set_a(r);
         }
         0xAB => {
-            let (addr, ex) = cpu.addr_indexed(bus);
+            let (addr, ex) = cpu.addr_indexed(mem);
             cpu.cycles += ex as u64;
-            let v = bus.read(addr);
+            let v = mem.read(addr);
             let a = cpu.reg.a();
             let r = alu::add8(a, v, &mut cpu.reg.cc);
             cpu.reg.set_a(r);
         }
         0xAC => {
-            let (addr, ex) = cpu.addr_indexed(bus);
+            let (addr, ex) = cpu.addr_indexed(mem);
             cpu.cycles += ex as u64;
-            let v = bus.read_word(addr);
+            let v = mem.read_word(addr);
             let x = cpu.reg.x;
             alu::sub16(x, v, &mut cpu.reg.cc);
         }
         0xAD => {
             // JSR indexed
-            let (addr, ex) = cpu.addr_indexed(bus);
+            let (addr, ex) = cpu.addr_indexed(mem);
             cpu.cycles += ex as u64;
-            cpu.push_word_s(bus, cpu.reg.pc);
+            cpu.push_word_s(mem, cpu.reg.pc);
             cpu.reg.pc = addr;
         }
         0xAE => {
-            let (addr, ex) = cpu.addr_indexed(bus);
+            let (addr, ex) = cpu.addr_indexed(mem);
             cpu.cycles += ex as u64;
-            let v = bus.read_word(addr);
+            let v = mem.read_word(addr);
             alu::ld16_flags(v, &mut cpu.reg.cc);
             cpu.reg.x = v;
         }
         0xAF => {
-            let (addr, ex) = cpu.addr_indexed(bus);
+            let (addr, ex) = cpu.addr_indexed(mem);
             cpu.cycles += ex as u64;
             let v = cpu.reg.x;
             alu::ld16_flags(v, &mut cpu.reg.cc);
-            bus.write_word(addr, v);
+            mem.write_word(addr, v);
         }
 
         // =================================================================
         // 0xB0..0xBF — Extended A / D / X
         // =================================================================
         0xB0 => {
-            let addr = cpu.addr_extended(bus);
-            let v = bus.read(addr);
+            let addr = cpu.addr_extended(mem);
+            let v = mem.read(addr);
             let a = cpu.reg.a();
             let r = alu::sub8(a, v, &mut cpu.reg.cc);
             cpu.reg.set_a(r);
         }
         0xB1 => {
-            let addr = cpu.addr_extended(bus);
-            let v = bus.read(addr);
+            let addr = cpu.addr_extended(mem);
+            let v = mem.read(addr);
             let a = cpu.reg.a();
             alu::sub8(a, v, &mut cpu.reg.cc);
         }
         0xB2 => {
-            let addr = cpu.addr_extended(bus);
-            let v = bus.read(addr);
+            let addr = cpu.addr_extended(mem);
+            let v = mem.read(addr);
             let a = cpu.reg.a();
             let r = alu::sbc8(a, v, &mut cpu.reg.cc);
             cpu.reg.set_a(r);
         }
         0xB3 => {
-            let addr = cpu.addr_extended(bus);
-            let v = bus.read_word(addr);
+            let addr = cpu.addr_extended(mem);
+            let v = mem.read_word(addr);
             let d = cpu.reg.d;
             let r = alu::sub16(d, v, &mut cpu.reg.cc);
             cpu.reg.d = r;
         }
         0xB4 => {
-            let addr = cpu.addr_extended(bus);
-            let v = bus.read(addr);
+            let addr = cpu.addr_extended(mem);
+            let v = mem.read(addr);
             let a = cpu.reg.a();
             let r = alu::and8(a, v, &mut cpu.reg.cc);
             cpu.reg.set_a(r);
         }
         0xB5 => {
-            let addr = cpu.addr_extended(bus);
-            let v = bus.read(addr);
+            let addr = cpu.addr_extended(mem);
+            let v = mem.read(addr);
             let a = cpu.reg.a();
             alu::and8(a, v, &mut cpu.reg.cc);
         }
         0xB6 => {
-            let addr = cpu.addr_extended(bus);
-            let v = bus.read(addr);
+            let addr = cpu.addr_extended(mem);
+            let v = mem.read(addr);
             alu::ld8_flags(v, &mut cpu.reg.cc);
             cpu.reg.set_a(v);
         }
         0xB7 => {
-            let addr = cpu.addr_extended(bus);
+            let addr = cpu.addr_extended(mem);
             let v = cpu.reg.a();
             alu::ld8_flags(v, &mut cpu.reg.cc);
-            bus.write(addr, v);
+            mem.write(addr, v);
         }
         0xB8 => {
             // EORA extended
-            let addr = cpu.addr_extended(bus);
-            let v = bus.read(addr);
+            let addr = cpu.addr_extended(mem);
+            let v = mem.read(addr);
             let a = cpu.reg.a();
             let r = alu::eor8(a, v, &mut cpu.reg.cc);
             cpu.reg.set_a(r);
         }
         0xB9 => {
-            let addr = cpu.addr_extended(bus);
-            let v = bus.read(addr);
+            let addr = cpu.addr_extended(mem);
+            let v = mem.read(addr);
             let a = cpu.reg.a();
             let r = alu::adc8(a, v, &mut cpu.reg.cc);
             cpu.reg.set_a(r);
         }
         0xBA => {
-            let addr = cpu.addr_extended(bus);
-            let v = bus.read(addr);
+            let addr = cpu.addr_extended(mem);
+            let v = mem.read(addr);
             let a = cpu.reg.a();
             let r = alu::or8(a, v, &mut cpu.reg.cc);
             cpu.reg.set_a(r);
         }
         0xBB => {
-            let addr = cpu.addr_extended(bus);
-            let v = bus.read(addr);
+            let addr = cpu.addr_extended(mem);
+            let v = mem.read(addr);
             let a = cpu.reg.a();
             let r = alu::add8(a, v, &mut cpu.reg.cc);
             cpu.reg.set_a(r);
         }
         0xBC => {
-            let addr = cpu.addr_extended(bus);
-            let v = bus.read_word(addr);
+            let addr = cpu.addr_extended(mem);
+            let v = mem.read_word(addr);
             let x = cpu.reg.x;
             alu::sub16(x, v, &mut cpu.reg.cc);
         }
         0xBD => {
             // JSR extended
-            let addr = cpu.addr_extended(bus);
-            cpu.push_word_s(bus, cpu.reg.pc);
+            let addr = cpu.addr_extended(mem);
+            cpu.push_word_s(mem, cpu.reg.pc);
             cpu.reg.pc = addr;
         }
         0xBE => {
-            let addr = cpu.addr_extended(bus);
-            let v = bus.read_word(addr);
+            let addr = cpu.addr_extended(mem);
+            let v = mem.read_word(addr);
             alu::ld16_flags(v, &mut cpu.reg.cc);
             cpu.reg.x = v;
         }
         0xBF => {
-            let addr = cpu.addr_extended(bus);
+            let addr = cpu.addr_extended(mem);
             let v = cpu.reg.x;
             alu::ld16_flags(v, &mut cpu.reg.cc);
-            bus.write_word(addr, v);
+            mem.write_word(addr, v);
         }
 
         // =================================================================
         // 0xC0..0xCF — Immediate B / D / U
         // =================================================================
         0xC0 => {
-            let v = cpu.fetch_byte(bus);
+            let v = cpu.fetch_byte(mem);
             let b = cpu.reg.b();
             let r = alu::sub8(b, v, &mut cpu.reg.cc);
             cpu.reg.set_b(r);
         }
         0xC1 => {
-            let v = cpu.fetch_byte(bus);
+            let v = cpu.fetch_byte(mem);
             let b = cpu.reg.b();
             alu::sub8(b, v, &mut cpu.reg.cc);
         }
         0xC2 => {
-            let v = cpu.fetch_byte(bus);
+            let v = cpu.fetch_byte(mem);
             let b = cpu.reg.b();
             let r = alu::sbc8(b, v, &mut cpu.reg.cc);
             cpu.reg.set_b(r);
         }
         0xC3 => {
             // ADDD immediate
-            let v = cpu.fetch_word(bus);
+            let v = cpu.fetch_word(mem);
             let d = cpu.reg.d;
             let r = alu::add16(d, v, &mut cpu.reg.cc);
             cpu.reg.d = r;
         }
         0xC4 => {
-            let v = cpu.fetch_byte(bus);
+            let v = cpu.fetch_byte(mem);
             let b = cpu.reg.b();
             let r = alu::and8(b, v, &mut cpu.reg.cc);
             cpu.reg.set_b(r);
         }
         0xC5 => {
-            let v = cpu.fetch_byte(bus);
+            let v = cpu.fetch_byte(mem);
             let b = cpu.reg.b();
             alu::and8(b, v, &mut cpu.reg.cc);
         }
         0xC6 => {
-            let v = cpu.fetch_byte(bus);
+            let v = cpu.fetch_byte(mem);
             alu::ld8_flags(v, &mut cpu.reg.cc);
             cpu.reg.set_b(v);
         }
         // 0xC7 illegal
         0xC8 => {
-            let v = cpu.fetch_byte(bus);
+            let v = cpu.fetch_byte(mem);
             let b = cpu.reg.b();
             let r = alu::eor8(b, v, &mut cpu.reg.cc);
             cpu.reg.set_b(r);
         }
         0xC9 => {
-            let v = cpu.fetch_byte(bus);
+            let v = cpu.fetch_byte(mem);
             let b = cpu.reg.b();
             let r = alu::adc8(b, v, &mut cpu.reg.cc);
             cpu.reg.set_b(r);
         }
         0xCA => {
-            let v = cpu.fetch_byte(bus);
+            let v = cpu.fetch_byte(mem);
             let b = cpu.reg.b();
             let r = alu::or8(b, v, &mut cpu.reg.cc);
             cpu.reg.set_b(r);
         }
         0xCB => {
-            let v = cpu.fetch_byte(bus);
+            let v = cpu.fetch_byte(mem);
             let b = cpu.reg.b();
             let r = alu::add8(b, v, &mut cpu.reg.cc);
             cpu.reg.set_b(r);
         }
         0xCC => {
             // LDD immediate
-            let v = cpu.fetch_word(bus);
+            let v = cpu.fetch_word(mem);
             alu::ld16_flags(v, &mut cpu.reg.cc);
             cpu.reg.d = v;
         }
@@ -1399,7 +1399,7 @@ pub fn execute(cpu: &mut Cpu, bus: &mut impl Bus, opcode: u8) {
             cpu.halted = true;
         }
         0xCE => {
-            let v = cpu.fetch_word(bus);
+            let v = cpu.fetch_word(mem);
             alu::ld16_flags(v, &mut cpu.reg.cc);
             cpu.reg.u = v;
         } // LDU
@@ -1409,342 +1409,342 @@ pub fn execute(cpu: &mut Cpu, bus: &mut impl Bus, opcode: u8) {
         // 0xD0..0xDF — Direct B / D / U
         // =================================================================
         0xD0 => {
-            let addr = cpu.addr_direct(bus);
-            let v = bus.read(addr);
+            let addr = cpu.addr_direct(mem);
+            let v = mem.read(addr);
             let b = cpu.reg.b();
             let r = alu::sub8(b, v, &mut cpu.reg.cc);
             cpu.reg.set_b(r);
         }
         0xD1 => {
-            let addr = cpu.addr_direct(bus);
-            let v = bus.read(addr);
+            let addr = cpu.addr_direct(mem);
+            let v = mem.read(addr);
             let b = cpu.reg.b();
             alu::sub8(b, v, &mut cpu.reg.cc);
         }
         0xD2 => {
-            let addr = cpu.addr_direct(bus);
-            let v = bus.read(addr);
+            let addr = cpu.addr_direct(mem);
+            let v = mem.read(addr);
             let b = cpu.reg.b();
             let r = alu::sbc8(b, v, &mut cpu.reg.cc);
             cpu.reg.set_b(r);
         }
         0xD3 => {
-            let addr = cpu.addr_direct(bus);
-            let v = bus.read_word(addr);
+            let addr = cpu.addr_direct(mem);
+            let v = mem.read_word(addr);
             let d = cpu.reg.d;
             let r = alu::add16(d, v, &mut cpu.reg.cc);
             cpu.reg.d = r;
         }
         0xD4 => {
-            let addr = cpu.addr_direct(bus);
-            let v = bus.read(addr);
+            let addr = cpu.addr_direct(mem);
+            let v = mem.read(addr);
             let b = cpu.reg.b();
             let r = alu::and8(b, v, &mut cpu.reg.cc);
             cpu.reg.set_b(r);
         }
         0xD5 => {
-            let addr = cpu.addr_direct(bus);
-            let v = bus.read(addr);
+            let addr = cpu.addr_direct(mem);
+            let v = mem.read(addr);
             let b = cpu.reg.b();
             alu::and8(b, v, &mut cpu.reg.cc);
         }
         0xD6 => {
-            let addr = cpu.addr_direct(bus);
-            let v = bus.read(addr);
+            let addr = cpu.addr_direct(mem);
+            let v = mem.read(addr);
             alu::ld8_flags(v, &mut cpu.reg.cc);
             cpu.reg.set_b(v);
         }
         0xD7 => {
-            let addr = cpu.addr_direct(bus);
+            let addr = cpu.addr_direct(mem);
             let v = cpu.reg.b();
             alu::ld8_flags(v, &mut cpu.reg.cc);
-            bus.write(addr, v);
+            mem.write(addr, v);
         }
         0xD8 => {
-            let addr = cpu.addr_direct(bus);
-            let v = bus.read(addr);
+            let addr = cpu.addr_direct(mem);
+            let v = mem.read(addr);
             let b = cpu.reg.b();
             let r = alu::eor8(b, v, &mut cpu.reg.cc);
             cpu.reg.set_b(r);
         }
         0xD9 => {
-            let addr = cpu.addr_direct(bus);
-            let v = bus.read(addr);
+            let addr = cpu.addr_direct(mem);
+            let v = mem.read(addr);
             let b = cpu.reg.b();
             let r = alu::adc8(b, v, &mut cpu.reg.cc);
             cpu.reg.set_b(r);
         }
         0xDA => {
-            let addr = cpu.addr_direct(bus);
-            let v = bus.read(addr);
+            let addr = cpu.addr_direct(mem);
+            let v = mem.read(addr);
             let b = cpu.reg.b();
             let r = alu::or8(b, v, &mut cpu.reg.cc);
             cpu.reg.set_b(r);
         }
         0xDB => {
-            let addr = cpu.addr_direct(bus);
-            let v = bus.read(addr);
+            let addr = cpu.addr_direct(mem);
+            let v = mem.read(addr);
             let b = cpu.reg.b();
             let r = alu::add8(b, v, &mut cpu.reg.cc);
             cpu.reg.set_b(r);
         }
         0xDC => {
             // LDD direct
-            let addr = cpu.addr_direct(bus);
-            let v = bus.read_word(addr);
+            let addr = cpu.addr_direct(mem);
+            let v = mem.read_word(addr);
             alu::ld16_flags(v, &mut cpu.reg.cc);
             cpu.reg.d = v;
         }
         0xDD => {
-            let addr = cpu.addr_direct(bus);
+            let addr = cpu.addr_direct(mem);
             let v = cpu.reg.d;
             alu::ld16_flags(v, &mut cpu.reg.cc);
-            bus.write_word(addr, v);
+            mem.write_word(addr, v);
         }
         0xDE => {
-            let addr = cpu.addr_direct(bus);
-            let v = bus.read_word(addr);
+            let addr = cpu.addr_direct(mem);
+            let v = mem.read_word(addr);
             alu::ld16_flags(v, &mut cpu.reg.cc);
             cpu.reg.u = v;
         }
         0xDF => {
-            let addr = cpu.addr_direct(bus);
+            let addr = cpu.addr_direct(mem);
             let v = cpu.reg.u;
             alu::ld16_flags(v, &mut cpu.reg.cc);
-            bus.write_word(addr, v);
+            mem.write_word(addr, v);
         }
 
         // =================================================================
         // 0xE0..0xEF — Indexed B / D / U
         // =================================================================
         0xE0 => {
-            let (addr, ex) = cpu.addr_indexed(bus);
+            let (addr, ex) = cpu.addr_indexed(mem);
             cpu.cycles += ex as u64;
-            let v = bus.read(addr);
+            let v = mem.read(addr);
             let b = cpu.reg.b();
             let r = alu::sub8(b, v, &mut cpu.reg.cc);
             cpu.reg.set_b(r);
         }
         0xE1 => {
-            let (addr, ex) = cpu.addr_indexed(bus);
+            let (addr, ex) = cpu.addr_indexed(mem);
             cpu.cycles += ex as u64;
-            let v = bus.read(addr);
+            let v = mem.read(addr);
             let b = cpu.reg.b();
             alu::sub8(b, v, &mut cpu.reg.cc);
         }
         0xE2 => {
-            let (addr, ex) = cpu.addr_indexed(bus);
+            let (addr, ex) = cpu.addr_indexed(mem);
             cpu.cycles += ex as u64;
-            let v = bus.read(addr);
+            let v = mem.read(addr);
             let b = cpu.reg.b();
             let r = alu::sbc8(b, v, &mut cpu.reg.cc);
             cpu.reg.set_b(r);
         }
         0xE3 => {
-            let (addr, ex) = cpu.addr_indexed(bus);
+            let (addr, ex) = cpu.addr_indexed(mem);
             cpu.cycles += ex as u64;
-            let v = bus.read_word(addr);
+            let v = mem.read_word(addr);
             let d = cpu.reg.d;
             let r = alu::add16(d, v, &mut cpu.reg.cc);
             cpu.reg.d = r;
         }
         0xE4 => {
-            let (addr, ex) = cpu.addr_indexed(bus);
+            let (addr, ex) = cpu.addr_indexed(mem);
             cpu.cycles += ex as u64;
-            let v = bus.read(addr);
+            let v = mem.read(addr);
             let b = cpu.reg.b();
             let r = alu::and8(b, v, &mut cpu.reg.cc);
             cpu.reg.set_b(r);
         }
         0xE5 => {
-            let (addr, ex) = cpu.addr_indexed(bus);
+            let (addr, ex) = cpu.addr_indexed(mem);
             cpu.cycles += ex as u64;
-            let v = bus.read(addr);
+            let v = mem.read(addr);
             let b = cpu.reg.b();
             alu::and8(b, v, &mut cpu.reg.cc);
         }
         0xE6 => {
-            let (addr, ex) = cpu.addr_indexed(bus);
+            let (addr, ex) = cpu.addr_indexed(mem);
             cpu.cycles += ex as u64;
-            let v = bus.read(addr);
+            let v = mem.read(addr);
             alu::ld8_flags(v, &mut cpu.reg.cc);
             cpu.reg.set_b(v);
         }
         0xE7 => {
-            let (addr, ex) = cpu.addr_indexed(bus);
+            let (addr, ex) = cpu.addr_indexed(mem);
             cpu.cycles += ex as u64;
             let v = cpu.reg.b();
             alu::ld8_flags(v, &mut cpu.reg.cc);
-            bus.write(addr, v);
+            mem.write(addr, v);
         }
         0xE8 => {
-            let (addr, ex) = cpu.addr_indexed(bus);
+            let (addr, ex) = cpu.addr_indexed(mem);
             cpu.cycles += ex as u64;
-            let v = bus.read(addr);
+            let v = mem.read(addr);
             let b = cpu.reg.b();
             let r = alu::eor8(b, v, &mut cpu.reg.cc);
             cpu.reg.set_b(r);
         }
         0xE9 => {
-            let (addr, ex) = cpu.addr_indexed(bus);
+            let (addr, ex) = cpu.addr_indexed(mem);
             cpu.cycles += ex as u64;
-            let v = bus.read(addr);
+            let v = mem.read(addr);
             let b = cpu.reg.b();
             let r = alu::adc8(b, v, &mut cpu.reg.cc);
             cpu.reg.set_b(r);
         }
         0xEA => {
-            let (addr, ex) = cpu.addr_indexed(bus);
+            let (addr, ex) = cpu.addr_indexed(mem);
             cpu.cycles += ex as u64;
-            let v = bus.read(addr);
+            let v = mem.read(addr);
             let b = cpu.reg.b();
             let r = alu::or8(b, v, &mut cpu.reg.cc);
             cpu.reg.set_b(r);
         }
         0xEB => {
-            let (addr, ex) = cpu.addr_indexed(bus);
+            let (addr, ex) = cpu.addr_indexed(mem);
             cpu.cycles += ex as u64;
-            let v = bus.read(addr);
+            let v = mem.read(addr);
             let b = cpu.reg.b();
             let r = alu::add8(b, v, &mut cpu.reg.cc);
             cpu.reg.set_b(r);
         }
         0xEC => {
             // LDD indexed
-            let (addr, ex) = cpu.addr_indexed(bus);
+            let (addr, ex) = cpu.addr_indexed(mem);
             cpu.cycles += ex as u64;
-            let v = bus.read_word(addr);
+            let v = mem.read_word(addr);
             alu::ld16_flags(v, &mut cpu.reg.cc);
             cpu.reg.d = v;
         }
         0xED => {
-            let (addr, ex) = cpu.addr_indexed(bus);
+            let (addr, ex) = cpu.addr_indexed(mem);
             cpu.cycles += ex as u64;
             let v = cpu.reg.d;
             alu::ld16_flags(v, &mut cpu.reg.cc);
-            bus.write_word(addr, v);
+            mem.write_word(addr, v);
         }
         0xEE => {
-            let (addr, ex) = cpu.addr_indexed(bus);
+            let (addr, ex) = cpu.addr_indexed(mem);
             cpu.cycles += ex as u64;
-            let v = bus.read_word(addr);
+            let v = mem.read_word(addr);
             alu::ld16_flags(v, &mut cpu.reg.cc);
             cpu.reg.u = v;
         }
         0xEF => {
-            let (addr, ex) = cpu.addr_indexed(bus);
+            let (addr, ex) = cpu.addr_indexed(mem);
             cpu.cycles += ex as u64;
             let v = cpu.reg.u;
             alu::ld16_flags(v, &mut cpu.reg.cc);
-            bus.write_word(addr, v);
+            mem.write_word(addr, v);
         }
 
         // =================================================================
         // 0xF0..0xFF — Extended B / D / U
         // =================================================================
         0xF0 => {
-            let addr = cpu.addr_extended(bus);
-            let v = bus.read(addr);
+            let addr = cpu.addr_extended(mem);
+            let v = mem.read(addr);
             let b = cpu.reg.b();
             let r = alu::sub8(b, v, &mut cpu.reg.cc);
             cpu.reg.set_b(r);
         }
         0xF1 => {
-            let addr = cpu.addr_extended(bus);
-            let v = bus.read(addr);
+            let addr = cpu.addr_extended(mem);
+            let v = mem.read(addr);
             let b = cpu.reg.b();
             alu::sub8(b, v, &mut cpu.reg.cc);
         }
         0xF2 => {
-            let addr = cpu.addr_extended(bus);
-            let v = bus.read(addr);
+            let addr = cpu.addr_extended(mem);
+            let v = mem.read(addr);
             let b = cpu.reg.b();
             let r = alu::sbc8(b, v, &mut cpu.reg.cc);
             cpu.reg.set_b(r);
         }
         0xF3 => {
-            let addr = cpu.addr_extended(bus);
-            let v = bus.read_word(addr);
+            let addr = cpu.addr_extended(mem);
+            let v = mem.read_word(addr);
             let d = cpu.reg.d;
             let r = alu::add16(d, v, &mut cpu.reg.cc);
             cpu.reg.d = r;
         }
         0xF4 => {
-            let addr = cpu.addr_extended(bus);
-            let v = bus.read(addr);
+            let addr = cpu.addr_extended(mem);
+            let v = mem.read(addr);
             let b = cpu.reg.b();
             let r = alu::and8(b, v, &mut cpu.reg.cc);
             cpu.reg.set_b(r);
         }
         0xF5 => {
-            let addr = cpu.addr_extended(bus);
-            let v = bus.read(addr);
+            let addr = cpu.addr_extended(mem);
+            let v = mem.read(addr);
             let b = cpu.reg.b();
             alu::and8(b, v, &mut cpu.reg.cc);
         }
         0xF6 => {
-            let addr = cpu.addr_extended(bus);
-            let v = bus.read(addr);
+            let addr = cpu.addr_extended(mem);
+            let v = mem.read(addr);
             alu::ld8_flags(v, &mut cpu.reg.cc);
             cpu.reg.set_b(v);
         }
         0xF7 => {
-            let addr = cpu.addr_extended(bus);
+            let addr = cpu.addr_extended(mem);
             let v = cpu.reg.b();
             alu::ld8_flags(v, &mut cpu.reg.cc);
-            bus.write(addr, v);
+            mem.write(addr, v);
         }
         0xF8 => {
-            let addr = cpu.addr_extended(bus);
-            let v = bus.read(addr);
+            let addr = cpu.addr_extended(mem);
+            let v = mem.read(addr);
             let b = cpu.reg.b();
             let r = alu::eor8(b, v, &mut cpu.reg.cc);
             cpu.reg.set_b(r);
         }
         0xF9 => {
-            let addr = cpu.addr_extended(bus);
-            let v = bus.read(addr);
+            let addr = cpu.addr_extended(mem);
+            let v = mem.read(addr);
             let b = cpu.reg.b();
             let r = alu::adc8(b, v, &mut cpu.reg.cc);
             cpu.reg.set_b(r);
         }
         0xFA => {
-            let addr = cpu.addr_extended(bus);
-            let v = bus.read(addr);
+            let addr = cpu.addr_extended(mem);
+            let v = mem.read(addr);
             let b = cpu.reg.b();
             let r = alu::or8(b, v, &mut cpu.reg.cc);
             cpu.reg.set_b(r);
         }
         0xFB => {
-            let addr = cpu.addr_extended(bus);
-            let v = bus.read(addr);
+            let addr = cpu.addr_extended(mem);
+            let v = mem.read(addr);
             let b = cpu.reg.b();
             let r = alu::add8(b, v, &mut cpu.reg.cc);
             cpu.reg.set_b(r);
         }
         0xFC => {
-            let addr = cpu.addr_extended(bus);
-            let v = bus.read_word(addr);
+            let addr = cpu.addr_extended(mem);
+            let v = mem.read_word(addr);
             alu::ld16_flags(v, &mut cpu.reg.cc);
             cpu.reg.d = v;
         }
         0xFD => {
-            let addr = cpu.addr_extended(bus);
+            let addr = cpu.addr_extended(mem);
             let v = cpu.reg.d;
             alu::ld16_flags(v, &mut cpu.reg.cc);
-            bus.write_word(addr, v);
+            mem.write_word(addr, v);
         }
         0xFE => {
-            let addr = cpu.addr_extended(bus);
-            let v = bus.read_word(addr);
+            let addr = cpu.addr_extended(mem);
+            let v = mem.read_word(addr);
             alu::ld16_flags(v, &mut cpu.reg.cc);
             cpu.reg.u = v;
         }
         0xFF => {
-            let addr = cpu.addr_extended(bus);
+            let addr = cpu.addr_extended(mem);
             let v = cpu.reg.u;
             alu::ld16_flags(v, &mut cpu.reg.cc);
-            bus.write_word(addr, v);
+            mem.write_word(addr, v);
         }
 
         // Illegal / undefined opcodes — treat as NOP (1 cycle already added)
@@ -1760,154 +1760,154 @@ pub fn execute(cpu: &mut Cpu, bus: &mut impl Bus, opcode: u8) {
 // ---------------------------------------------------------------------------
 
 /// PSHS: push selected registers onto S. Each byte pushed adds 1 cycle.
-fn pshs(cpu: &mut Cpu, bus: &mut impl Bus, post: u8) {
+fn pshs(cpu: &mut Cpu, mem: &mut impl Memory, post: u8) {
     // Push order: PC, U, Y, X, DP, B, A, CC (highest bit first)
     if post & 0x80 != 0 {
-        cpu.push_word_s(bus, cpu.reg.pc);
+        cpu.push_word_s(mem, cpu.reg.pc);
         cpu.cycles += 2;
     }
     if post & 0x40 != 0 {
-        cpu.push_word_s(bus, cpu.reg.u);
+        cpu.push_word_s(mem, cpu.reg.u);
         cpu.cycles += 2;
     }
     if post & 0x20 != 0 {
-        cpu.push_word_s(bus, cpu.reg.y);
+        cpu.push_word_s(mem, cpu.reg.y);
         cpu.cycles += 2;
     }
     if post & 0x10 != 0 {
-        cpu.push_word_s(bus, cpu.reg.x);
+        cpu.push_word_s(mem, cpu.reg.x);
         cpu.cycles += 2;
     }
     if post & 0x08 != 0 {
-        cpu.push_byte_s(bus, cpu.reg.dp);
+        cpu.push_byte_s(mem, cpu.reg.dp);
         cpu.cycles += 1;
     }
     if post & 0x04 != 0 {
-        cpu.push_byte_s(bus, cpu.reg.b());
+        cpu.push_byte_s(mem, cpu.reg.b());
         cpu.cycles += 1;
     }
     if post & 0x02 != 0 {
-        cpu.push_byte_s(bus, cpu.reg.a());
+        cpu.push_byte_s(mem, cpu.reg.a());
         cpu.cycles += 1;
     }
     if post & 0x01 != 0 {
-        cpu.push_byte_s(bus, cpu.reg.cc.to_byte());
+        cpu.push_byte_s(mem, cpu.reg.cc.to_byte());
         cpu.cycles += 1;
     }
 }
 
 /// PULS: pull selected registers from S. Each byte pulled adds 1 cycle.
-fn puls(cpu: &mut Cpu, bus: &mut impl Bus, post: u8) {
+fn puls(cpu: &mut Cpu, mem: &mut impl Memory, post: u8) {
     // Pull order: CC, A, B, DP, X, Y, U, PC (lowest bit first)
     if post & 0x01 != 0 {
-        let v = cpu.pull_byte_s(bus);
+        let v = cpu.pull_byte_s(mem);
         cpu.reg.cc = crate::registers::ConditionCodes::from_byte(v);
         cpu.cycles += 1;
     }
     if post & 0x02 != 0 {
-        let v = cpu.pull_byte_s(bus);
+        let v = cpu.pull_byte_s(mem);
         cpu.reg.set_a(v);
         cpu.cycles += 1;
     }
     if post & 0x04 != 0 {
-        let v = cpu.pull_byte_s(bus);
+        let v = cpu.pull_byte_s(mem);
         cpu.reg.set_b(v);
         cpu.cycles += 1;
     }
     if post & 0x08 != 0 {
-        cpu.reg.dp = cpu.pull_byte_s(bus);
+        cpu.reg.dp = cpu.pull_byte_s(mem);
         cpu.cycles += 1;
     }
     if post & 0x10 != 0 {
-        cpu.reg.x = cpu.pull_word_s(bus);
+        cpu.reg.x = cpu.pull_word_s(mem);
         cpu.cycles += 2;
     }
     if post & 0x20 != 0 {
-        cpu.reg.y = cpu.pull_word_s(bus);
+        cpu.reg.y = cpu.pull_word_s(mem);
         cpu.cycles += 2;
     }
     if post & 0x40 != 0 {
-        cpu.reg.u = cpu.pull_word_s(bus);
+        cpu.reg.u = cpu.pull_word_s(mem);
         cpu.cycles += 2;
     }
     if post & 0x80 != 0 {
-        cpu.reg.pc = cpu.pull_word_s(bus);
+        cpu.reg.pc = cpu.pull_word_s(mem);
         cpu.cycles += 2;
     }
 }
 
 /// PSHU: push selected registers onto U.
-fn pshu(cpu: &mut Cpu, bus: &mut impl Bus, post: u8) {
+fn pshu(cpu: &mut Cpu, mem: &mut impl Memory, post: u8) {
     if post & 0x80 != 0 {
-        cpu.push_word_u(bus, cpu.reg.pc);
+        cpu.push_word_u(mem, cpu.reg.pc);
         cpu.cycles += 2;
     }
     if post & 0x40 != 0 {
-        cpu.push_word_u(bus, cpu.reg.s);
+        cpu.push_word_u(mem, cpu.reg.s);
         cpu.cycles += 2;
     } // S instead of U
     if post & 0x20 != 0 {
-        cpu.push_word_u(bus, cpu.reg.y);
+        cpu.push_word_u(mem, cpu.reg.y);
         cpu.cycles += 2;
     }
     if post & 0x10 != 0 {
-        cpu.push_word_u(bus, cpu.reg.x);
+        cpu.push_word_u(mem, cpu.reg.x);
         cpu.cycles += 2;
     }
     if post & 0x08 != 0 {
-        cpu.push_byte_u(bus, cpu.reg.dp);
+        cpu.push_byte_u(mem, cpu.reg.dp);
         cpu.cycles += 1;
     }
     if post & 0x04 != 0 {
-        cpu.push_byte_u(bus, cpu.reg.b());
+        cpu.push_byte_u(mem, cpu.reg.b());
         cpu.cycles += 1;
     }
     if post & 0x02 != 0 {
-        cpu.push_byte_u(bus, cpu.reg.a());
+        cpu.push_byte_u(mem, cpu.reg.a());
         cpu.cycles += 1;
     }
     if post & 0x01 != 0 {
-        cpu.push_byte_u(bus, cpu.reg.cc.to_byte());
+        cpu.push_byte_u(mem, cpu.reg.cc.to_byte());
         cpu.cycles += 1;
     }
 }
 
 /// PULU: pull selected registers from U.
-fn pulu(cpu: &mut Cpu, bus: &mut impl Bus, post: u8) {
+fn pulu(cpu: &mut Cpu, mem: &mut impl Memory, post: u8) {
     if post & 0x01 != 0 {
-        let v = cpu.pull_byte_u(bus);
+        let v = cpu.pull_byte_u(mem);
         cpu.reg.cc = crate::registers::ConditionCodes::from_byte(v);
         cpu.cycles += 1;
     }
     if post & 0x02 != 0 {
-        let v = cpu.pull_byte_u(bus);
+        let v = cpu.pull_byte_u(mem);
         cpu.reg.set_a(v);
         cpu.cycles += 1;
     }
     if post & 0x04 != 0 {
-        let v = cpu.pull_byte_u(bus);
+        let v = cpu.pull_byte_u(mem);
         cpu.reg.set_b(v);
         cpu.cycles += 1;
     }
     if post & 0x08 != 0 {
-        cpu.reg.dp = cpu.pull_byte_u(bus);
+        cpu.reg.dp = cpu.pull_byte_u(mem);
         cpu.cycles += 1;
     }
     if post & 0x10 != 0 {
-        cpu.reg.x = cpu.pull_word_u(bus);
+        cpu.reg.x = cpu.pull_word_u(mem);
         cpu.cycles += 2;
     }
     if post & 0x20 != 0 {
-        cpu.reg.y = cpu.pull_word_u(bus);
+        cpu.reg.y = cpu.pull_word_u(mem);
         cpu.cycles += 2;
     }
     if post & 0x40 != 0 {
-        cpu.reg.s = cpu.pull_word_u(bus);
+        cpu.reg.s = cpu.pull_word_u(mem);
         cpu.arm_nmi();
         cpu.cycles += 2;
     } // S instead of U
     if post & 0x80 != 0 {
-        cpu.reg.pc = cpu.pull_word_u(bus);
+        cpu.reg.pc = cpu.pull_word_u(mem);
         cpu.cycles += 2;
     }
 }

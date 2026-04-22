@@ -1,43 +1,53 @@
 # mc6809-core
 
-mc6809-core is a small, focused Rust library implementing the Motorola 6809 CPU for use in emulators, tools, and testing harnesses. It provides a `Cpu` implementation capable of executing 6809 instructions against any memory system that implements the `Bus` trait.
+mc6809-core is a small, focused Rust library implementing the Motorola 6809 CPU for use in emulators, tools, and testing harnesses. It provides a `Cpu` implementation capable of executing 6809 instructions against any memory system that implements the `Memory` trait.
 
 Features
 - Accurate 6809 instruction execution and addressing modes
 - Modular design: separate `alu`, `addressing`, `bus`, `registers` modules
-- A `Bus` trait for pluggable memory and I/O backends
+- A `Memory` trait for pluggable memory and I/O backends
+- A `Bus` trait for peripheral timing and interrupt signal delivery, kept separate from memory access
 - Lightweight API suitable for embedding in emulators, disassemblers, and debuggers
 
 Public modules
 - `addressing` — addressing mode helpers
 - `alu` — arithmetic and logic operations
-- `bus` — `Bus` trait for memory access
+- `bus` — `Memory` trait for address/data bus access; `Bus` trait for peripheral tick and interrupt signals
 - `registers` — CPU register and status types
 
 Quick example
 
 ```rust
-use mc6809_core::{Cpu, Bus};
+use mc6809_core::{Cpu, Memory};
 
 struct FlatRam([u8; 65536]);
 
-impl Bus for FlatRam {
-	fn read(&mut self, addr: u16) -> u8 { self.0[addr as usize] }
-	fn write(&mut self, addr: u16, val: u8) { self.0[addr as usize] = val; }
+impl Memory for FlatRam {
+    fn read(&mut self, addr: u16) -> u8 { self.0[addr as usize] }
+    fn write(&mut self, addr: u16, val: u8) { self.0[addr as usize] = val; }
 }
 
-let mut bus = FlatRam([0; 65536]);
+let mut mem = FlatRam([0; 65536]);
 // Place a reset vector pointing to 0x0400
-bus.0[0xFFFE] = 0x04;
-bus.0[0xFFFF] = 0x00;
+mem.0[0xFFFE] = 0x04;
+mem.0[0xFFFF] = 0x00;
 // Place a NOP at 0x0400
-bus.0[0x0400] = 0x12;
+mem.0[0x0400] = 0x12;
 
 let mut cpu = Cpu::new();
-cpu.reset(&mut bus);
+cpu.reset(&mut mem);
 assert_eq!(cpu.reg.pc, 0x0400);
-cpu.step(&mut bus);
+cpu.step(&mut mem);
 assert_eq!(cpu.reg.pc, 0x0401);
+```
+
+Systems with peripherals implement both traits on the same type. The `Memory` trait is
+passed to the CPU, while `Bus::tick` is called separately by the host loop:
+
+```rust,ignore
+let signals = system.tick(elapsed_cycles);
+cpu.set_irq(signals.irq);
+cpu.set_firq(signals.firq);
 ```
 
 Building and testing

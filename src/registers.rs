@@ -35,7 +35,7 @@ pub(crate) const CC_E: u8 = 0x80; // Entire state saved
 /// and directly accessible from JIT-emitted code.
 #[repr(transparent)]
 #[derive(Clone, Copy, Default, PartialEq, Eq)]
-pub struct ConditionCodes(u8);
+pub struct ConditionCodes(pub(crate) u8);
 impl ConditionCodes {
     pub const fn new() -> Self {
         Self(0)

@@ -12,7 +12,7 @@
 //   See the License for the specific language governing permissions and
 //   limitations under the License.
 
-use crate::bus::Bus;
+use crate::bus::Memory;
 use crate::registers::Registers;
 
 mod opcodes;
@@ -79,11 +79,11 @@ impl Cpu {
     }
 
     /// Hardware reset: read PC from reset vector, set I+F, clear state.
-    pub fn reset(&mut self, bus: &mut impl Bus) {
+    pub fn reset(&mut self, mem: &mut impl Memory) {
         self.reg = Registers::new();
         self.reg.cc.set_irq_inhibit(true);
         self.reg.cc.set_firq_inhibit(true);
-        self.reg.pc = bus.read_word(VEC_RESET);
+        self.reg.pc = mem.read_word(VEC_RESET);
         self.cycles = 0;
         self.halted = false;
         self.illegal = false;
@@ -114,7 +114,7 @@ impl Cpu {
 
     /// Execute a single instruction (or handle a pending interrupt).
     /// Returns the number of cycles consumed.
-    pub fn step(&mut self, bus: &mut impl Bus) -> u64 {
+    pub fn step(&mut self, mem: &mut impl Memory) -> u64 {
         if self.halted {
             return 1;
         }
@@ -132,41 +132,41 @@ impl Cpu {
         }
 
         // Check pending interrupts (priority: NMI > FIRQ > IRQ)
-        if self.check_interrupts(bus) {
+        if self.check_interrupts(mem) {
             return self.cycles - start_cycles;
         }
 
         // Fetch and execute one instruction
-        let opcode = self.fetch_byte(bus);
-        self.execute(bus, opcode);
+        let opcode = self.fetch_byte(mem);
+        self.execute(mem, opcode);
 
         self.cycles - start_cycles
     }
 
     /// Run until at least `cycle_budget` cycles have been consumed.
-    pub fn run(&mut self, bus: &mut impl Bus, cycle_budget: u64) -> u64 {
+    pub fn run(&mut self, mem: &mut impl Memory, cycle_budget: u64) -> u64 {
         let start_cycles = self.cycles;
         let target = self.cycles + cycle_budget;
         while self.cycles < target && !self.halted {
-            self.step(bus);
+            self.step(mem);
         }
         self.cycles - start_cycles
     }
 
     // ---- interrupt logic ----
 
-    fn check_interrupts(&mut self, bus: &mut impl Bus) -> bool {
+    fn check_interrupts(&mut self, mem: &mut impl Memory) -> bool {
         // NMI (edge-triggered, highest priority)
         if self.nmi_pending {
             self.nmi_pending = false;
             if !self.cwai {
                 self.reg.cc.set_entire(true);
-                self.push_entire_state(bus);
+                self.push_entire_state(mem);
             }
             self.cwai = false;
             self.reg.cc.set_irq_inhibit(true);
             self.reg.cc.set_firq_inhibit(true);
-            self.reg.pc = bus.read_word(VEC_NMI);
+            self.reg.pc = mem.read_word(VEC_NMI);
             self.cycles += 19;
             return true;
         }
@@ -175,13 +175,13 @@ impl Cpu {
         if self.firq_line && !self.reg.cc.firq_inhibit() {
             if !self.cwai {
                 self.reg.cc.set_entire(false);
-                self.push_word_s(bus, self.reg.pc);
-                self.push_byte_s(bus, self.reg.cc.to_byte());
+                self.push_word_s(mem, self.reg.pc);
+                self.push_byte_s(mem, self.reg.cc.to_byte());
             }
             self.cwai = false;
             self.reg.cc.set_irq_inhibit(true);
             self.reg.cc.set_firq_inhibit(true);
-            self.reg.pc = bus.read_word(VEC_FIRQ);
+            self.reg.pc = mem.read_word(VEC_FIRQ);
             self.cycles += 10;
             return true;
         }
@@ -190,11 +190,11 @@ impl Cpu {
         if self.irq_line && !self.reg.cc.irq_inhibit() {
             if !self.cwai {
                 self.reg.cc.set_entire(true);
-                self.push_entire_state(bus);
+                self.push_entire_state(mem);
             }
             self.cwai = false;
             self.reg.cc.set_irq_inhibit(true);
-            self.reg.pc = bus.read_word(VEC_IRQ);
+            self.reg.pc = mem.read_word(VEC_IRQ);
             self.cycles += 19;
             return true;
         }
@@ -205,113 +205,113 @@ impl Cpu {
     // ---- stack helpers ----
 
     /// Push a byte onto the hardware stack (S).
-    pub(super) fn push_byte_s(&mut self, bus: &mut impl Bus, val: u8) {
+    pub(super) fn push_byte_s(&mut self, mem: &mut impl Memory, val: u8) {
         self.reg.s = self.reg.s.wrapping_sub(1);
-        bus.write(self.reg.s, val);
+        mem.write(self.reg.s, val);
     }
 
-    /// Push a 16-bit word onto the hardware stack (S), high byte first.
-    pub(super) fn push_word_s(&mut self, bus: &mut impl Bus, val: u16) {
-        self.push_byte_s(bus, val as u8); // low byte pushed first (ends at higher address)
-        self.push_byte_s(bus, (val >> 8) as u8);
+    /// Push a 16-bit word onto the hardware stack (S), low byte first.
+    pub(super) fn push_word_s(&mut self, mem: &mut impl Memory, val: u16) {
+        self.push_byte_s(mem, val as u8); // low byte pushed first (ends at higher address)
+        self.push_byte_s(mem, (val >> 8) as u8);
     }
 
     /// Pull a byte from the hardware stack (S).
-    pub(super) fn pull_byte_s(&mut self, bus: &mut impl Bus) -> u8 {
-        let val = bus.read(self.reg.s);
+    pub(super) fn pull_byte_s(&mut self, mem: &mut impl Memory) -> u8 {
+        let val = mem.read(self.reg.s);
         self.reg.s = self.reg.s.wrapping_add(1);
         val
     }
 
     /// Pull a 16-bit word from the hardware stack (S).
-    pub(super) fn pull_word_s(&mut self, bus: &mut impl Bus) -> u16 {
-        let hi = self.pull_byte_s(bus) as u16;
-        let lo = self.pull_byte_s(bus) as u16;
+    pub(super) fn pull_word_s(&mut self, mem: &mut impl Memory) -> u16 {
+        let hi = self.pull_byte_s(mem) as u16;
+        let lo = self.pull_byte_s(mem) as u16;
         (hi << 8) | lo
     }
 
     /// Push a byte onto the user stack (U).
-    pub(super) fn push_byte_u(&mut self, bus: &mut impl Bus, val: u8) {
+    pub(super) fn push_byte_u(&mut self, mem: &mut impl Memory, val: u8) {
         self.reg.u = self.reg.u.wrapping_sub(1);
-        bus.write(self.reg.u, val);
+        mem.write(self.reg.u, val);
     }
 
     /// Push a 16-bit word onto the user stack (U).
-    pub(super) fn push_word_u(&mut self, bus: &mut impl Bus, val: u16) {
-        self.push_byte_u(bus, val as u8);
-        self.push_byte_u(bus, (val >> 8) as u8);
+    pub(super) fn push_word_u(&mut self, mem: &mut impl Memory, val: u16) {
+        self.push_byte_u(mem, val as u8);
+        self.push_byte_u(mem, (val >> 8) as u8);
     }
 
     /// Pull a byte from the user stack (U).
-    pub(super) fn pull_byte_u(&mut self, bus: &mut impl Bus) -> u8 {
-        let val = bus.read(self.reg.u);
+    pub(super) fn pull_byte_u(&mut self, mem: &mut impl Memory) -> u8 {
+        let val = mem.read(self.reg.u);
         self.reg.u = self.reg.u.wrapping_add(1);
         val
     }
 
     /// Pull a 16-bit word from the user stack (U).
-    pub(super) fn pull_word_u(&mut self, bus: &mut impl Bus) -> u16 {
-        let hi = self.pull_byte_u(bus) as u16;
-        let lo = self.pull_byte_u(bus) as u16;
+    pub(super) fn pull_word_u(&mut self, mem: &mut impl Memory) -> u16 {
+        let hi = self.pull_byte_u(mem) as u16;
+        let lo = self.pull_byte_u(mem) as u16;
         (hi << 8) | lo
     }
 
     /// Push the entire register state onto S (used by NMI, IRQ, SWI).
     /// Order: CC, A, B, DP, X, Y, U, PC (PC pushed first = highest address).
-    pub(super) fn push_entire_state(&mut self, bus: &mut impl Bus) {
-        self.push_word_s(bus, self.reg.pc);
-        self.push_word_s(bus, self.reg.u);
-        self.push_word_s(bus, self.reg.y);
-        self.push_word_s(bus, self.reg.x);
-        self.push_byte_s(bus, self.reg.dp);
-        self.push_byte_s(bus, self.reg.b());
-        self.push_byte_s(bus, self.reg.a());
-        self.push_byte_s(bus, self.reg.cc.to_byte());
+    pub(super) fn push_entire_state(&mut self, mem: &mut impl Memory) {
+        self.push_word_s(mem, self.reg.pc);
+        self.push_word_s(mem, self.reg.u);
+        self.push_word_s(mem, self.reg.y);
+        self.push_word_s(mem, self.reg.x);
+        self.push_byte_s(mem, self.reg.dp);
+        self.push_byte_s(mem, self.reg.b());
+        self.push_byte_s(mem, self.reg.a());
+        self.push_byte_s(mem, self.reg.cc.to_byte());
     }
 
     // ---- instruction fetch helpers ----
 
     /// Fetch a byte from [PC] and advance PC.
-    pub(super) fn fetch_byte(&mut self, bus: &mut impl Bus) -> u8 {
-        let val = bus.read(self.reg.pc);
+    pub(super) fn fetch_byte(&mut self, mem: &mut impl Memory) -> u8 {
+        let val = mem.read(self.reg.pc);
         self.reg.pc = self.reg.pc.wrapping_add(1);
         val
     }
 
     /// Fetch a big-endian 16-bit word from [PC] and advance PC by 2.
-    pub(super) fn fetch_word(&mut self, bus: &mut impl Bus) -> u16 {
-        let hi = self.fetch_byte(bus) as u16;
-        let lo = self.fetch_byte(bus) as u16;
+    pub(super) fn fetch_word(&mut self, mem: &mut impl Memory) -> u16 {
+        let hi = self.fetch_byte(mem) as u16;
+        let lo = self.fetch_byte(mem) as u16;
         (hi << 8) | lo
     }
 
     // ---- addressing mode helpers ----
 
     /// Direct addressing: DP:fetch_byte → effective address.
-    pub(super) fn addr_direct(&mut self, bus: &mut impl Bus) -> u16 {
-        let lo = self.fetch_byte(bus) as u16;
+    pub(super) fn addr_direct(&mut self, mem: &mut impl Memory) -> u16 {
+        let lo = self.fetch_byte(mem) as u16;
         ((self.reg.dp as u16) << 8) | lo
     }
 
     /// Extended addressing: fetch 16-bit absolute address.
-    pub(super) fn addr_extended(&mut self, bus: &mut impl Bus) -> u16 {
-        self.fetch_word(bus)
+    pub(super) fn addr_extended(&mut self, mem: &mut impl Memory) -> u16 {
+        self.fetch_word(mem)
     }
 
     /// Indexed addressing: decode post-byte and return (effective_address, extra_cycles).
-    pub(super) fn addr_indexed(&mut self, bus: &mut impl Bus) -> (u16, u8) {
-        crate::addressing::indexed(self, bus)
+    pub(super) fn addr_indexed(&mut self, mem: &mut impl Memory) -> (u16, u8) {
+        crate::addressing::indexed(self, mem)
     }
 
     /// Relative 8-bit: signed offset from current PC.
-    pub(super) fn addr_relative8(&mut self, bus: &mut impl Bus) -> u16 {
-        let offset = self.fetch_byte(bus) as i8 as i16 as u16;
+    pub(super) fn addr_relative8(&mut self, mem: &mut impl Memory) -> u16 {
+        let offset = self.fetch_byte(mem) as i8 as i16 as u16;
         self.reg.pc.wrapping_add(offset)
     }
 
     /// Relative 16-bit: signed offset from current PC.
-    pub(super) fn addr_relative16(&mut self, bus: &mut impl Bus) -> u16 {
-        let offset = self.fetch_word(bus);
+    pub(super) fn addr_relative16(&mut self, mem: &mut impl Memory) -> u16 {
+        let offset = self.fetch_word(mem);
         self.reg.pc.wrapping_add(offset)
     }
 

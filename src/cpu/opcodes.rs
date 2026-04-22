@@ -18,7 +18,7 @@ mod page0;
 mod page1;
 mod page2;
 
-use crate::bus::Bus;
+use crate::bus::Memory;
 use crate::cpu::Cpu;
 
 /// Returns the base cycle count for a 6809 instruction.
@@ -32,25 +32,25 @@ pub fn instruction_cycles(bytes: &[u8]) -> u8 {
     match bytes.first().copied() {
         Some(0x10) => bytes.get(1).map_or(0, |&sub| page1::cycles(sub)),
         Some(0x11) => bytes.get(1).map_or(0, |&sub| page2::cycles(sub)),
-        Some(op)   => page0::cycles(op),
-        None       => 0,
+        Some(op) => page0::cycles(op),
+        None => 0,
     }
 }
 
 /// Execute a single opcode (already fetched).
 impl Cpu {
-    pub(crate) fn execute(&mut self, bus: &mut impl Bus, opcode: u8) {
+    pub(crate) fn execute(&mut self, mem: &mut impl Memory, opcode: u8) {
         match opcode {
             0x10 => {
-                let op2 = self.fetch_byte(bus);
-                page1::execute(self, bus, op2);
+                let op2 = self.fetch_byte(mem);
+                page1::execute(self, mem, op2);
             }
             0x11 => {
-                let op2 = self.fetch_byte(bus);
-                page2::execute(self, bus, op2);
+                let op2 = self.fetch_byte(mem);
+                page2::execute(self, mem, op2);
             }
             _ => {
-                page0::execute(self, bus, opcode);
+                page0::execute(self, mem, opcode);
             }
         }
     }

@@ -1,7 +1,7 @@
 [package]
 name = "mc6809-core"
 description = "Motorola 6809 CPU emulator core"
-version = "0.1.2"
+version = "0.2.0"
 edition = "2024"
 license = "Apache-2.0"
 keywords = ["6809", "mc6809", "emulator", "motorola"]

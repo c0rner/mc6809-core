@@ -19,7 +19,7 @@
 //! source: <https://github.com/hoglet67/6809Decoder/wiki/Undocumented-6809-Behaviours>
 
 use crate::alu;
-use crate::bus::Bus;
+use crate::bus::Memory;
 use crate::cpu::Cpu;
 
 /// Base cycle counts for Page 2 opcodes.
@@ -48,7 +48,7 @@ pub(super) fn cycles(sub: u8) -> u8 {
     PAGE2_CYCLES[sub as usize]
 }
 
-pub fn execute(cpu: &mut Cpu, bus: &mut impl Bus, opcode: u8) {
+pub fn execute(cpu: &mut Cpu, mem: &mut impl Memory, opcode: u8) {
     cpu.cycles += PAGE2_CYCLES[opcode as usize] as u64;
 
     match opcode {
@@ -62,43 +62,43 @@ pub fn execute(cpu: &mut Cpu, bus: &mut impl Bus, opcode: u8) {
         // Flags: all flags are unchanged
         // Note: unlike a hardware FIRQ, the F and I flags are not set.
         0x3E => {
-            cpu.push_entire_state(bus);
-            cpu.reg.pc = bus.read_word(crate::cpu::VEC_FIRQ);
+            cpu.push_entire_state(mem);
+            cpu.reg.pc = mem.read_word(crate::cpu::VEC_FIRQ);
         }
         // =================================================================
         // SWI3
         // =================================================================
         0x3F => {
             cpu.reg.cc.set_entire(true);
-            cpu.push_entire_state(bus);
+            cpu.push_entire_state(mem);
             // SWI3 does NOT set I or F flags
-            cpu.reg.pc = bus.read_word(crate::cpu::VEC_SWI3);
+            cpu.reg.pc = mem.read_word(crate::cpu::VEC_SWI3);
         }
 
         // =================================================================
         // CMPU — compare U
         // =================================================================
         0x83 => {
-            let v = cpu.fetch_word(bus);
+            let v = cpu.fetch_word(mem);
             let u = cpu.reg.u;
             alu::sub16(u, v, &mut cpu.reg.cc);
         }
         0x93 => {
-            let addr = cpu.addr_direct(bus);
-            let v = bus.read_word(addr);
+            let addr = cpu.addr_direct(mem);
+            let v = mem.read_word(addr);
             let u = cpu.reg.u;
             alu::sub16(u, v, &mut cpu.reg.cc);
         }
         0xA3 => {
-            let (addr, ex) = cpu.addr_indexed(bus);
+            let (addr, ex) = cpu.addr_indexed(mem);
             cpu.cycles += ex as u64;
-            let v = bus.read_word(addr);
+            let v = mem.read_word(addr);
             let u = cpu.reg.u;
             alu::sub16(u, v, &mut cpu.reg.cc);
         }
         0xB3 => {
-            let addr = cpu.addr_extended(bus);
-            let v = bus.read_word(addr);
+            let addr = cpu.addr_extended(mem);
+            let v = mem.read_word(addr);
             let u = cpu.reg.u;
             alu::sub16(u, v, &mut cpu.reg.cc);
         }
@@ -107,26 +107,26 @@ pub fn execute(cpu: &mut Cpu, bus: &mut impl Bus, opcode: u8) {
         // CMPS — compare S
         // =================================================================
         0x8C => {
-            let v = cpu.fetch_word(bus);
+            let v = cpu.fetch_word(mem);
             let s = cpu.reg.s;
             alu::sub16(s, v, &mut cpu.reg.cc);
         }
         0x9C => {
-            let addr = cpu.addr_direct(bus);
-            let v = bus.read_word(addr);
+            let addr = cpu.addr_direct(mem);
+            let v = mem.read_word(addr);
             let s = cpu.reg.s;
             alu::sub16(s, v, &mut cpu.reg.cc);
         }
         0xAC => {
-            let (addr, ex) = cpu.addr_indexed(bus);
+            let (addr, ex) = cpu.addr_indexed(mem);
             cpu.cycles += ex as u64;
-            let v = bus.read_word(addr);
+            let v = mem.read_word(addr);
             let s = cpu.reg.s;
             alu::sub16(s, v, &mut cpu.reg.cc);
         }
         0xBC => {
-            let addr = cpu.addr_extended(bus);
-            let v = bus.read_word(addr);
+            let addr = cpu.addr_extended(mem);
+            let v = mem.read_word(addr);
             let s = cpu.reg.s;
             alu::sub16(s, v, &mut cpu.reg.cc);
         }
@@ -139,29 +139,29 @@ pub fn execute(cpu: &mut Cpu, bus: &mut impl Bus, opcode: u8) {
         // to ADDD. The result is, however, not written back to U.
         0xC3 => {
             // XADDU imm
-            let v = cpu.fetch_word(bus);
+            let v = cpu.fetch_word(mem);
             let u = cpu.reg.u | 0xFF00;
             let _r = alu::add16(u, v, &mut cpu.reg.cc);
         }
         0xD3 => {
             // XADDU direct
-            let addr = cpu.addr_direct(bus);
-            let v = bus.read_word(addr);
+            let addr = cpu.addr_direct(mem);
+            let v = mem.read_word(addr);
             let u = cpu.reg.u | 0xFF00;
             let _r = alu::add16(u, v, &mut cpu.reg.cc);
         }
         0xE3 => {
             // XADDU indexed
-            let (addr, ex) = cpu.addr_indexed(bus);
+            let (addr, ex) = cpu.addr_indexed(mem);
             cpu.cycles += ex as u64;
-            let v = bus.read_word(addr);
+            let v = mem.read_word(addr);
             let u = cpu.reg.u | 0xFF00;
             let _r = alu::add16(u, v, &mut cpu.reg.cc);
         }
         0xF3 => {
             // XADDU extended
-            let addr = cpu.addr_extended(bus);
-            let v = bus.read_word(addr);
+            let addr = cpu.addr_extended(mem);
+            let v = mem.read_word(addr);
             let u = cpu.reg.u | 0xFF00;
             let _r = alu::add16(u, v, &mut cpu.reg.cc);
         }

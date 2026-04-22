@@ -16,32 +16,34 @@
 //!
 //! A Motorola 6809 CPU emulator core.
 //!
-//! Provides a [`Cpu`] that executes 6809 instructions against any
-//! memory system implementing the [`Bus`] trait.
+//! Provides a [`Cpu`] that executes 6809 instructions against any memory system
+//! implementing the [`Memory`] trait. Peripheral timing and interrupt signals are
+//! handled separately via the [`Bus`] trait, which is called by the host loop
+//! independently of the CPU.
 //!
 //! ## Example
 //!
 //! ```rust
-//! use mc6809_core::{Cpu, Bus};
+//! use mc6809_core::{Cpu, Memory};
 //!
 //! struct FlatRam([u8; 65536]);
 //!
-//! impl Bus for FlatRam {
+//! impl Memory for FlatRam {
 //!     fn read(&mut self, addr: u16) -> u8 { self.0[addr as usize] }
 //!     fn write(&mut self, addr: u16, val: u8) { self.0[addr as usize] = val; }
 //! }
 //!
-//! let mut bus = FlatRam([0; 65536]);
+//! let mut mem = FlatRam([0; 65536]);
 //! // Place a reset vector pointing to 0x0400
-//! bus.0[0xFFFE] = 0x04;
-//! bus.0[0xFFFF] = 0x00;
+//! mem.0[0xFFFE] = 0x04;
+//! mem.0[0xFFFF] = 0x00;
 //! // Place a NOP at 0x0400
-//! bus.0[0x0400] = 0x12;
+//! mem.0[0x0400] = 0x12;
 //!
 //! let mut cpu = Cpu::new();
-//! cpu.reset(&mut bus);
+//! cpu.reset(&mut mem);
 //! assert_eq!(cpu.reg.pc, 0x0400);
-//! cpu.step(&mut bus);
+//! cpu.step(&mut mem);
 //! assert_eq!(cpu.reg.pc, 0x0401);
 //! ```
 
@@ -51,7 +53,7 @@ pub mod bus;
 mod cpu;
 pub mod registers;
 
-pub use bus::{Bus, BusSignals};
+pub use bus::{Bus, BusSignals, Memory};
 pub use cpu::Cpu;
 pub use cpu::instruction_cycles;
 pub use registers::{ConditionCodes, Registers};
