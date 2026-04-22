@@ -2,14 +2,14 @@ use std::env;
 use std::fs;
 use std::process;
 
-use mc6809_core::{Bus, Cpu};
+use mc6809_core::{Cpu, Memory};
 
 /// Simple 64KB flat RAM bus for testing.
-struct FlatBus {
+struct FlatMem {
     mem: Box<[u8; 65536]>,
 }
 
-impl FlatBus {
+impl FlatMem {
     fn new() -> Self {
         Self {
             mem: Box::new([0u8; 65536]),
@@ -33,7 +33,7 @@ impl FlatBus {
     }
 }
 
-impl Bus for FlatBus {
+impl Memory for FlatMem {
     fn read(&mut self, addr: u16) -> u8 {
         self.mem[addr as usize]
     }
@@ -94,12 +94,12 @@ fn main() {
         process::exit(1);
     });
 
-    let mut bus = FlatBus::new();
-    bus.load(&data, load_addr);
-    bus.set_reset_vector(load_addr);
+    let mut mem = FlatMem::new();
+    mem.load(&data, load_addr);
+    mem.set_reset_vector(load_addr);
 
     let mut cpu = Cpu::new();
-    cpu.reset(&mut bus);
+    cpu.reset(&mut mem);
 
     println!(
         "Loaded {} bytes at {:04X}, reset vector → {:04X}",
@@ -114,7 +114,7 @@ fn main() {
         if trace {
             print!("{:?}  ", cpu);
         }
-        let cyc = cpu.step(&mut bus);
+        let cyc = cpu.step(&mut mem);
         if trace {
             println!("({} cycles)", cyc);
         }

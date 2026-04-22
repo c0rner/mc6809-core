@@ -13,7 +13,7 @@
 //   limitations under the License.
 
 mod common;
-use common::{HaltReason, TestHarnessBus, run_to_halt};
+use common::{HaltReason, TestHarness, run_to_halt};
 
 use mc6809_core::Cpu;
 
@@ -25,7 +25,7 @@ const BINARY: &[u8] = include_bytes!("../asm/mc6809_test.bin");
 /// and assert that every test passed.
 #[test]
 fn mc6809_integration() {
-    let mut bus = TestHarnessBus::new();
+    let mut bus = TestHarness::new();
     bus.load(BINARY, 0x0000);
 
     let mut cpu = Cpu::new();

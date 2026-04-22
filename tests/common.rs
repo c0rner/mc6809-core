@@ -12,7 +12,7 @@
 //   See the License for the specific language governing permissions and
 //   limitations under the License.
 
-use mc6809_core::{Bus, Cpu};
+use mc6809_core::{Cpu, Memory};
 
 /// Write to this address to signal all tests passed (value = last test number).
 pub const PASS_REG: u16 = 0xFF00;
@@ -49,7 +49,7 @@ pub enum HaltReason {
 ///
 /// All other addresses are plain RAM, so assembly code can write interrupt
 /// vectors anywhere in the 64 KB address space.
-pub struct TestHarnessBus {
+pub struct TestHarness {
     mem: Box<[u8; 65536]>,
     halted: bool,
     halt_reason: Option<HaltReason>,
@@ -58,7 +58,7 @@ pub struct TestHarnessBus {
     nmi_pulse: bool,
 }
 
-impl TestHarnessBus {
+impl TestHarness {
     pub fn new() -> Self {
         Self {
             mem: Box::new([0u8; 65536]),
@@ -79,13 +79,13 @@ impl TestHarnessBus {
     }
 }
 
-impl Default for TestHarnessBus {
+impl Default for TestHarness {
     fn default() -> Self {
         Self::new()
     }
 }
 
-impl Bus for TestHarnessBus {
+impl Memory for TestHarness {
     fn read(&mut self, addr: u16) -> u8 {
         self.mem[addr as usize]
     }
@@ -120,19 +120,19 @@ impl Bus for TestHarnessBus {
 /// exhausts the cycle budget.  Before each instruction, interrupt-line
 /// state written by the test program via the trigger registers is applied
 /// to the CPU so the 6809 sees them on the very next step.
-pub fn run_to_halt(cpu: &mut Cpu, bus: &mut TestHarnessBus) -> HaltReason {
+pub fn run_to_halt(cpu: &mut Cpu, system: &mut TestHarness) -> HaltReason {
     while cpu.cycles < MAX_CYCLES {
         // Drive interrupt lines from the bus trigger registers.
-        cpu.set_irq(bus.irq_asserted);
-        cpu.set_firq(bus.firq_asserted);
-        if bus.nmi_pulse {
-            bus.nmi_pulse = false;
+        cpu.set_irq(system.irq_asserted);
+        cpu.set_firq(system.firq_asserted);
+        if system.nmi_pulse {
+            system.nmi_pulse = false;
             cpu.trigger_nmi();
         }
 
-        cpu.step(bus);
-        if bus.halted {
-            return bus.halt_reason.take().unwrap();
+        cpu.step(system);
+        if system.halted {
+            return system.halt_reason.take().unwrap();
         }
     }
     HaltReason::CycleLimit

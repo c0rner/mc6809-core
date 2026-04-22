@@ -17,15 +17,15 @@
 //! The post-byte encodes the index register, offset type, and indirection.
 //! Returns `(effective_address, extra_cycles)`.
 
-use crate::bus::Bus;
+use crate::bus::Memory;
 use crate::cpu::Cpu;
 
 /// Decode an indexed addressing post-byte and compute the effective address.
 ///
 /// Returns `(ea, extra_cycles)` where `extra_cycles` is the additional cycle
 /// count beyond the base instruction cycles.
-pub fn indexed(cpu: &mut Cpu, bus: &mut impl Bus) -> (u16, u8) {
-    let post = cpu.fetch_byte(bus);
+pub fn indexed(cpu: &mut Cpu, mem: &mut impl Memory) -> (u16, u8) {
+    let post = cpu.fetch_byte(mem);
 
     // Bit 7 == 0: 5-bit signed offset from R, no indirection
     if post & 0x80 == 0 {
@@ -92,13 +92,13 @@ pub fn indexed(cpu: &mut Cpu, bus: &mut impl Bus) -> (u16, u8) {
         // 0x08: 8-bit offset, R
         0x08 => {
             let reg = index_reg(cpu, post);
-            let offset = cpu.fetch_byte(bus) as i8 as i16 as u16;
+            let offset = cpu.fetch_byte(mem) as i8 as i16 as u16;
             (reg.wrapping_add(offset), 1)
         }
         // 0x09: 16-bit offset, R
         0x09 => {
             let reg = index_reg(cpu, post);
-            let offset = cpu.fetch_word(bus);
+            let offset = cpu.fetch_word(mem);
             (reg.wrapping_add(offset), 4)
         }
         // 0x0B: D,R
@@ -109,22 +109,22 @@ pub fn indexed(cpu: &mut Cpu, bus: &mut impl Bus) -> (u16, u8) {
         }
         // 0x0C: 8-bit offset, PC
         0x0C => {
-            let offset = cpu.fetch_byte(bus) as i8 as i16 as u16;
+            let offset = cpu.fetch_byte(mem) as i8 as i16 as u16;
             let ea = cpu.reg.pc.wrapping_add(offset);
             (ea, 1)
         }
         // 0x0D: 16-bit offset, PC
         0x0D => {
-            let offset = cpu.fetch_word(bus);
+            let offset = cpu.fetch_word(mem);
             let ea = cpu.reg.pc.wrapping_add(offset);
             (ea, 5)
         }
         // 0x0F: Extended indirect [address] (only valid with indirect bit)
         0x0F if indirect => {
-            let ea = cpu.fetch_word(bus);
+            let ea = cpu.fetch_word(mem);
             // The indirect dereference happens below. Base extra = 5, then +3 for indirect.
             // But for extended indirect, total extra = 5 (already includes indirection).
-            let ptr = bus.read_word(ea);
+            let ptr = mem.read_word(ea);
             return (ptr, 5);
         }
         // Illegal indexed modes
@@ -136,7 +136,7 @@ pub fn indexed(cpu: &mut Cpu, bus: &mut impl Bus) -> (u16, u8) {
 
     if indirect {
         // Add 3 cycles for indirection and dereference the EA
-        let ptr = bus.read_word(ea);
+        let ptr = mem.read_word(ea);
         (ptr, extra + 3)
     } else {
         (ea, extra)

@@ -11,6 +11,7 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 - New test harness allowing for run-time tests in sync with the emulator.
 
 ### Changed
+- **BREAKING**: New `Memory` trait introduced for address/data bus access (`read`, `write`, `read_word`, `write_word`); `Bus` trait is now solely for peripheral timing via `tick()` and interrupt signal delivery. `Cpu::reset()`, `Cpu::step()`, and `Cpu::run()` now accept `impl Memory` instead of `impl Bus`.
 - Migrate away from the `mod.rs` module naming convention
 
 ## [0.1.2] - 2026-04-06

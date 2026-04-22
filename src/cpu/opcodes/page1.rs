@@ -19,7 +19,7 @@
 //! source: <https://github.com/hoglet67/6809Decoder/wiki/Undocumented-6809-Behaviours>
 
 use crate::alu;
-use crate::bus::Bus;
+use crate::bus::Memory;
 use crate::cpu::Cpu;
 
 /// Base cycle counts for Page 1 opcodes. Only valid entries are non-zero.
@@ -68,7 +68,7 @@ pub(super) fn cycles(sub: u8) -> u8 {
     PAGE1_CYCLES[sub as usize]
 }
 
-pub fn execute(cpu: &mut Cpu, bus: &mut impl Bus, opcode: u8) {
+pub fn execute(cpu: &mut Cpu, mem: &mut impl Memory, opcode: u8) {
     cpu.cycles += PAGE1_CYCLES[opcode as usize] as u64;
 
     match opcode {
@@ -77,16 +77,16 @@ pub fn execute(cpu: &mut Cpu, bus: &mut impl Bus, opcode: u8) {
         // =================================================================
         0x20 => {
             // XLBRA (same as LBRA with one extra cycle)
-            let addr = cpu.addr_relative16(bus);
+            let addr = cpu.addr_relative16(mem);
             cpu.reg.pc = addr;
         }
         0x21 => {
             // LBRN
-            let _addr = cpu.addr_relative16(bus);
+            let _addr = cpu.addr_relative16(mem);
         }
         0x22 => {
             // LBHI
-            let addr = cpu.addr_relative16(bus);
+            let addr = cpu.addr_relative16(mem);
             if !cpu.reg.cc.carry() && !cpu.reg.cc.zero() {
                 cpu.reg.pc = addr;
                 cpu.cycles += 1;
@@ -94,7 +94,7 @@ pub fn execute(cpu: &mut Cpu, bus: &mut impl Bus, opcode: u8) {
         }
         0x23 => {
             // LBLS
-            let addr = cpu.addr_relative16(bus);
+            let addr = cpu.addr_relative16(mem);
             if cpu.reg.cc.carry() || cpu.reg.cc.zero() {
                 cpu.reg.pc = addr;
                 cpu.cycles += 1;
@@ -102,7 +102,7 @@ pub fn execute(cpu: &mut Cpu, bus: &mut impl Bus, opcode: u8) {
         }
         0x24 => {
             // LBHS/LBCC
-            let addr = cpu.addr_relative16(bus);
+            let addr = cpu.addr_relative16(mem);
             if !cpu.reg.cc.carry() {
                 cpu.reg.pc = addr;
                 cpu.cycles += 1;
@@ -110,7 +110,7 @@ pub fn execute(cpu: &mut Cpu, bus: &mut impl Bus, opcode: u8) {
         }
         0x25 => {
             // LBLO/LBCS
-            let addr = cpu.addr_relative16(bus);
+            let addr = cpu.addr_relative16(mem);
             if cpu.reg.cc.carry() {
                 cpu.reg.pc = addr;
                 cpu.cycles += 1;
@@ -118,7 +118,7 @@ pub fn execute(cpu: &mut Cpu, bus: &mut impl Bus, opcode: u8) {
         }
         0x26 => {
             // LBNE
-            let addr = cpu.addr_relative16(bus);
+            let addr = cpu.addr_relative16(mem);
             if !cpu.reg.cc.zero() {
                 cpu.reg.pc = addr;
                 cpu.cycles += 1;
@@ -126,7 +126,7 @@ pub fn execute(cpu: &mut Cpu, bus: &mut impl Bus, opcode: u8) {
         }
         0x27 => {
             // LBEQ
-            let addr = cpu.addr_relative16(bus);
+            let addr = cpu.addr_relative16(mem);
             if cpu.reg.cc.zero() {
                 cpu.reg.pc = addr;
                 cpu.cycles += 1;
@@ -134,7 +134,7 @@ pub fn execute(cpu: &mut Cpu, bus: &mut impl Bus, opcode: u8) {
         }
         0x28 => {
             // LBVC
-            let addr = cpu.addr_relative16(bus);
+            let addr = cpu.addr_relative16(mem);
             if !cpu.reg.cc.overflow() {
                 cpu.reg.pc = addr;
                 cpu.cycles += 1;
@@ -142,7 +142,7 @@ pub fn execute(cpu: &mut Cpu, bus: &mut impl Bus, opcode: u8) {
         }
         0x29 => {
             // LBVS
-            let addr = cpu.addr_relative16(bus);
+            let addr = cpu.addr_relative16(mem);
             if cpu.reg.cc.overflow() {
                 cpu.reg.pc = addr;
                 cpu.cycles += 1;
@@ -150,7 +150,7 @@ pub fn execute(cpu: &mut Cpu, bus: &mut impl Bus, opcode: u8) {
         }
         0x2A => {
             // LBPL
-            let addr = cpu.addr_relative16(bus);
+            let addr = cpu.addr_relative16(mem);
             if !cpu.reg.cc.negative() {
                 cpu.reg.pc = addr;
                 cpu.cycles += 1;
@@ -158,7 +158,7 @@ pub fn execute(cpu: &mut Cpu, bus: &mut impl Bus, opcode: u8) {
         }
         0x2B => {
             // LBMI
-            let addr = cpu.addr_relative16(bus);
+            let addr = cpu.addr_relative16(mem);
             if cpu.reg.cc.negative() {
                 cpu.reg.pc = addr;
                 cpu.cycles += 1;
@@ -166,7 +166,7 @@ pub fn execute(cpu: &mut Cpu, bus: &mut impl Bus, opcode: u8) {
         }
         0x2C => {
             // LBGE
-            let addr = cpu.addr_relative16(bus);
+            let addr = cpu.addr_relative16(mem);
             if cpu.reg.cc.negative() == cpu.reg.cc.overflow() {
                 cpu.reg.pc = addr;
                 cpu.cycles += 1;
@@ -174,7 +174,7 @@ pub fn execute(cpu: &mut Cpu, bus: &mut impl Bus, opcode: u8) {
         }
         0x2D => {
             // LBLT
-            let addr = cpu.addr_relative16(bus);
+            let addr = cpu.addr_relative16(mem);
             if cpu.reg.cc.negative() != cpu.reg.cc.overflow() {
                 cpu.reg.pc = addr;
                 cpu.cycles += 1;
@@ -182,7 +182,7 @@ pub fn execute(cpu: &mut Cpu, bus: &mut impl Bus, opcode: u8) {
         }
         0x2E => {
             // LBGT
-            let addr = cpu.addr_relative16(bus);
+            let addr = cpu.addr_relative16(mem);
             if !cpu.reg.cc.zero() && cpu.reg.cc.negative() == cpu.reg.cc.overflow() {
                 cpu.reg.pc = addr;
                 cpu.cycles += 1;
@@ -190,7 +190,7 @@ pub fn execute(cpu: &mut Cpu, bus: &mut impl Bus, opcode: u8) {
         }
         0x2F => {
             // LBLE
-            let addr = cpu.addr_relative16(bus);
+            let addr = cpu.addr_relative16(mem);
             if cpu.reg.cc.zero() || cpu.reg.cc.negative() != cpu.reg.cc.overflow() {
                 cpu.reg.pc = addr;
                 cpu.cycles += 1;
@@ -203,40 +203,40 @@ pub fn execute(cpu: &mut Cpu, bus: &mut impl Bus, opcode: u8) {
         0x3E => {
             // SWi2 (undocumented)
             // Does not set E, I or F flags
-            cpu.push_entire_state(bus);
-            cpu.reg.pc = bus.read_word(crate::cpu::VEC_SWI2);
+            cpu.push_entire_state(mem);
+            cpu.reg.pc = mem.read_word(crate::cpu::VEC_SWI2);
         }
         0x3F => {
             cpu.reg.cc.set_entire(true);
-            cpu.push_entire_state(bus);
+            cpu.push_entire_state(mem);
             // SWI2 does NOT set I or F flags
-            cpu.reg.pc = bus.read_word(crate::cpu::VEC_SWI2);
+            cpu.reg.pc = mem.read_word(crate::cpu::VEC_SWI2);
         }
 
         // =================================================================
         // CMPD — compare D (16-bit subtract, discard result)
         // =================================================================
         0x83 => {
-            let v = cpu.fetch_word(bus);
+            let v = cpu.fetch_word(mem);
             let d = cpu.reg.d;
             alu::sub16(d, v, &mut cpu.reg.cc);
         }
         0x93 => {
-            let addr = cpu.addr_direct(bus);
-            let v = bus.read_word(addr);
+            let addr = cpu.addr_direct(mem);
+            let v = mem.read_word(addr);
             let d = cpu.reg.d;
             alu::sub16(d, v, &mut cpu.reg.cc);
         }
         0xA3 => {
-            let (addr, ex) = cpu.addr_indexed(bus);
+            let (addr, ex) = cpu.addr_indexed(mem);
             cpu.cycles += ex as u64;
-            let v = bus.read_word(addr);
+            let v = mem.read_word(addr);
             let d = cpu.reg.d;
             alu::sub16(d, v, &mut cpu.reg.cc);
         }
         0xB3 => {
-            let addr = cpu.addr_extended(bus);
-            let v = bus.read_word(addr);
+            let addr = cpu.addr_extended(mem);
+            let v = mem.read_word(addr);
             let d = cpu.reg.d;
             alu::sub16(d, v, &mut cpu.reg.cc);
         }
@@ -245,26 +245,26 @@ pub fn execute(cpu: &mut Cpu, bus: &mut impl Bus, opcode: u8) {
         // CMPY — compare Y
         // =================================================================
         0x8C => {
-            let v = cpu.fetch_word(bus);
+            let v = cpu.fetch_word(mem);
             let y = cpu.reg.y;
             alu::sub16(y, v, &mut cpu.reg.cc);
         }
         0x9C => {
-            let addr = cpu.addr_direct(bus);
-            let v = bus.read_word(addr);
+            let addr = cpu.addr_direct(mem);
+            let v = mem.read_word(addr);
             let y = cpu.reg.y;
             alu::sub16(y, v, &mut cpu.reg.cc);
         }
         0xAC => {
-            let (addr, ex) = cpu.addr_indexed(bus);
+            let (addr, ex) = cpu.addr_indexed(mem);
             cpu.cycles += ex as u64;
-            let v = bus.read_word(addr);
+            let v = mem.read_word(addr);
             let y = cpu.reg.y;
             alu::sub16(y, v, &mut cpu.reg.cc);
         }
         0xBC => {
-            let addr = cpu.addr_extended(bus);
-            let v = bus.read_word(addr);
+            let addr = cpu.addr_extended(mem);
+            let v = mem.read_word(addr);
             let y = cpu.reg.y;
             alu::sub16(y, v, &mut cpu.reg.cc);
         }
@@ -273,47 +273,47 @@ pub fn execute(cpu: &mut Cpu, bus: &mut impl Bus, opcode: u8) {
         // LDY / STY
         // =================================================================
         0x8E => {
-            let v = cpu.fetch_word(bus);
+            let v = cpu.fetch_word(mem);
             alu::ld16_flags(v, &mut cpu.reg.cc);
             cpu.reg.y = v;
         }
         0x9E => {
-            let addr = cpu.addr_direct(bus);
-            let v = bus.read_word(addr);
+            let addr = cpu.addr_direct(mem);
+            let v = mem.read_word(addr);
             alu::ld16_flags(v, &mut cpu.reg.cc);
             cpu.reg.y = v;
         }
         0x9F => {
-            let addr = cpu.addr_direct(bus);
+            let addr = cpu.addr_direct(mem);
             let v = cpu.reg.y;
             alu::ld16_flags(v, &mut cpu.reg.cc);
-            bus.write_word(addr, v);
+            mem.write_word(addr, v);
         }
         0xAE => {
-            let (addr, ex) = cpu.addr_indexed(bus);
+            let (addr, ex) = cpu.addr_indexed(mem);
             cpu.cycles += ex as u64;
-            let v = bus.read_word(addr);
+            let v = mem.read_word(addr);
             alu::ld16_flags(v, &mut cpu.reg.cc);
             cpu.reg.y = v;
         }
         0xAF => {
-            let (addr, ex) = cpu.addr_indexed(bus);
+            let (addr, ex) = cpu.addr_indexed(mem);
             cpu.cycles += ex as u64;
             let v = cpu.reg.y;
             alu::ld16_flags(v, &mut cpu.reg.cc);
-            bus.write_word(addr, v);
+            mem.write_word(addr, v);
         }
         0xBE => {
-            let addr = cpu.addr_extended(bus);
-            let v = bus.read_word(addr);
+            let addr = cpu.addr_extended(mem);
+            let v = mem.read_word(addr);
             alu::ld16_flags(v, &mut cpu.reg.cc);
             cpu.reg.y = v;
         }
         0xBF => {
-            let addr = cpu.addr_extended(bus);
+            let addr = cpu.addr_extended(mem);
             let v = cpu.reg.y;
             alu::ld16_flags(v, &mut cpu.reg.cc);
-            bus.write_word(addr, v);
+            mem.write_word(addr, v);
         }
 
         // =================================================================
@@ -324,78 +324,78 @@ pub fn execute(cpu: &mut Cpu, bus: &mut impl Bus, opcode: u8) {
             // XADDD performs a 16-bit addition of the operand with D, and
             // sets the Z,N,C,V flags in an identical manner to ADDD. The
             // result is, however, not written back to D.
-            let v = cpu.fetch_word(bus);
+            let v = cpu.fetch_word(mem);
             let d = cpu.reg.d;
             let _r = alu::add16(d, v, &mut cpu.reg.cc);
         }
         0xCE => {
-            let v = cpu.fetch_word(bus);
+            let v = cpu.fetch_word(mem);
             alu::ld16_flags(v, &mut cpu.reg.cc);
             cpu.reg.s = v;
             cpu.arm_nmi();
         }
         0xD3 => {
             // XADDD direct (undocumented)
-            let addr = cpu.addr_direct(bus);
-            let v = bus.read_word(addr);
+            let addr = cpu.addr_direct(mem);
+            let v = mem.read_word(addr);
             let d = cpu.reg.d;
             let _r = alu::add16(d, v, &mut cpu.reg.cc);
         }
         0xDE => {
-            let addr = cpu.addr_direct(bus);
-            let v = bus.read_word(addr);
+            let addr = cpu.addr_direct(mem);
+            let v = mem.read_word(addr);
             alu::ld16_flags(v, &mut cpu.reg.cc);
             cpu.reg.s = v;
             cpu.arm_nmi();
         }
         0xDF => {
-            let addr = cpu.addr_direct(bus);
+            let addr = cpu.addr_direct(mem);
             let v = cpu.reg.s;
             alu::ld16_flags(v, &mut cpu.reg.cc);
-            bus.write_word(addr, v);
+            mem.write_word(addr, v);
         }
         0xE3 => {
             // XADDD indexed (undocumented)
-            let (addr, ex) = cpu.addr_indexed(bus);
+            let (addr, ex) = cpu.addr_indexed(mem);
             cpu.cycles += ex as u64;
-            let v = bus.read_word(addr);
+            let v = mem.read_word(addr);
             let d = cpu.reg.d;
             let _r = alu::add16(d, v, &mut cpu.reg.cc);
         }
         0xEE => {
-            let (addr, ex) = cpu.addr_indexed(bus);
+            let (addr, ex) = cpu.addr_indexed(mem);
             cpu.cycles += ex as u64;
-            let v = bus.read_word(addr);
+            let v = mem.read_word(addr);
             alu::ld16_flags(v, &mut cpu.reg.cc);
             cpu.reg.s = v;
             cpu.arm_nmi();
         }
         0xEF => {
-            let (addr, ex) = cpu.addr_indexed(bus);
+            let (addr, ex) = cpu.addr_indexed(mem);
             cpu.cycles += ex as u64;
             let v = cpu.reg.s;
             alu::ld16_flags(v, &mut cpu.reg.cc);
-            bus.write_word(addr, v);
+            mem.write_word(addr, v);
         }
         0xF3 => {
             // XADDD extended (undocumented)
-            let addr = cpu.addr_extended(bus);
-            let v = bus.read_word(addr);
+            let addr = cpu.addr_extended(mem);
+            let v = mem.read_word(addr);
             let d = cpu.reg.d;
             let _r = alu::add16(d, v, &mut cpu.reg.cc);
         }
         0xFE => {
-            let addr = cpu.addr_extended(bus);
-            let v = bus.read_word(addr);
+            let addr = cpu.addr_extended(mem);
+            let v = mem.read_word(addr);
             alu::ld16_flags(v, &mut cpu.reg.cc);
             cpu.reg.s = v;
             cpu.arm_nmi();
         }
         0xFF => {
-            let addr = cpu.addr_extended(bus);
+            let addr = cpu.addr_extended(mem);
             let v = cpu.reg.s;
             alu::ld16_flags(v, &mut cpu.reg.cc);
-            bus.write_word(addr, v);
+            mem.write_word(addr, v);
         }
 
         // Illegal Page 1 opcodes
