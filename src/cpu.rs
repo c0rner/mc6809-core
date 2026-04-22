@@ -210,7 +210,7 @@ impl Cpu {
         mem.write(self.reg.s, val);
     }
 
-    /// Push a 16-bit word onto the hardware stack (S), high byte first.
+    /// Push a 16-bit word onto the hardware stack (S), low byte first.
     pub(super) fn push_word_s(&mut self, mem: &mut impl Memory, val: u16) {
         self.push_byte_s(mem, val as u8); // low byte pushed first (ends at higher address)
         self.push_byte_s(mem, (val >> 8) as u8);
