@@ -27,6 +27,9 @@ use crate::cpu::Cpu;
 /// inspects `bytes[0]` to detect the page prefix (0x10 = page 1, 0x11 = page 2)
 /// and dispatches to the appropriate cycle table.
 ///
+/// Repeated page-prefix chaining is intentionally unsupported: only the first
+/// leading `0x10` or `0x11` is recognised as a page selector.
+///
 /// Returns `0` for an empty slice or an unrecognised sub-opcode.
 pub fn instruction_cycles(bytes: &[u8]) -> u8 {
     match bytes.first().copied() {
@@ -38,6 +41,10 @@ pub fn instruction_cycles(bytes: &[u8]) -> u8 {
 }
 
 /// Execute a single opcode (already fetched).
+///
+/// Repeated page-prefix chaining is intentionally unsupported: if a page
+/// prefix fetches another prefix as its sub-opcode, that second prefix is
+/// handled as the page-local opcode byte rather than being discarded.
 impl Cpu {
     pub(crate) fn execute(&mut self, mem: &mut impl Memory, opcode: u8) {
         match opcode {

@@ -41,9 +41,16 @@ pub struct Cpu {
     pub reg: Registers,
     /// Total elapsed cycles since reset.
     pub cycles: u64,
-    /// CPU is halted (hit illegal opcode or RESET instruction).
+    /// CPU execution has been explicitly halted by an instruction.
+    ///
+    /// Illegal opcodes do not set this flag; they only set [`Self::illegal`]
+    /// so the host can decide whether to keep running or stop.
     pub halted: bool,
-    /// CPU encountered an illegal opcode (invalid in current state).
+    /// Sticky status bit set when an illegal opcode is executed.
+    ///
+    /// The 6809 keeps running after undefined opcodes, so this flag does not
+    /// halt the CPU by itself. Hosts that want trap-like behaviour can check
+    /// this flag after each [`Self::step`] and stop on their own policy.
     pub illegal: bool,
 
     // ---- interrupt state ----
@@ -114,6 +121,10 @@ impl Cpu {
 
     /// Execute a single instruction (or handle a pending interrupt).
     /// Returns the number of cycles consumed.
+    ///
+    /// If the decoded instruction is illegal, the CPU records that in
+    /// [`Self::illegal`] and continues execution unless the caller chooses to
+    /// stop.
     pub fn step(&mut self, mem: &mut impl Memory) -> u64 {
         if self.halted {
             return 1;
@@ -144,6 +155,10 @@ impl Cpu {
     }
 
     /// Run until at least `cycle_budget` cycles have been consumed.
+    ///
+    /// This method stops only when the cycle budget is exhausted or
+    /// [`Self::halted`] becomes true. Illegal opcodes do not stop `run`; check
+    /// [`Self::illegal`] in the host loop if that policy is desired.
     pub fn run(&mut self, mem: &mut impl Memory, cycle_budget: u64) -> u64 {
         let start_cycles = self.cycles;
         let target = self.cycles + cycle_budget;

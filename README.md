@@ -48,7 +48,17 @@ passed to the CPU, while `Bus::tick` is called separately by the host loop:
 let signals = system.tick(elapsed_cycles);
 cpu.set_irq(signals.irq);
 cpu.set_firq(signals.firq);
+if signals.nmi {
+    cpu.trigger_nmi();
+}
+if cpu.illegal {
+    // Optional host policy: stop, log, or ignore.
+}
 ```
+
+Behavior notes
+- Illegal opcodes set `Cpu::illegal` but do not halt the CPU. This matches the default 6809-style execution model and leaves trap/stop policy to the host.
+- Repeated page-prefix chaining (`0x10`/`0x11` after an initial page prefix) is intentionally not implemented. Only a single leading page prefix is recognised.
 
 Building and testing
 - Build: `cargo build` (run in the workspace or this crate)

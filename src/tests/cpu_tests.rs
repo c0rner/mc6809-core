@@ -941,6 +941,22 @@ fn xhcf_0xcd_halts_cpu() {
     assert!(cpu.halted);
 }
 
+#[test]
+fn illegal_opcode_sets_flag_but_execution_continues() {
+    let (mut cpu, mut mem) = setup(&[0x87, 0x12], 0x0400);
+
+    let first_cycles = cpu.step(&mut mem);
+    assert_eq!(first_cycles, 1);
+    assert!(cpu.illegal);
+    assert!(!cpu.halted);
+    assert_eq!(cpu.reg.pc, 0x0401);
+
+    let second_cycles = cpu.step(&mut mem);
+    assert_eq!(second_cycles, 2);
+    assert_eq!(cpu.reg.pc, 0x0402);
+    assert!(!cpu.halted);
+}
+
 // ---- X18: undocumented flag rotate (0x18) ----
 
 #[test]
