@@ -5,6 +5,16 @@ All notable changes to this project will be documented in this file.
 The format is based on [Keep a Changelog](https://keepachangelog.com/en/1.0.0/),
 and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0.html).
 
+## [Unreleased]
+
+### Added
+- New `peripheral` module exposing the `Clocked` trait and `BusSignals` for peripheral timing and interrupt signal delivery; `Memory` is now the sole interface for memory access.
+- `Cpu::registers()` (read-only) and `Cpu::registers_mut()` (RAII mutable guard) to safely access CPU registers; the mutable guard arms NMI when the hardware stack pointer (S) is changed, matching 6809 behavior.
+
+### Changed
+- Refactored public API and internal structure: removed the old `Bus` trait and migrated peripheral responsibilities to the new `peripheral` module; `Cpu::reg` is now private.
+- CPU distinguishes illegal opcodes from explicit halts; added `Cpu::illegal()` for host detection and `Cpu::halted()` for explicit halts. Illegal opcodes do not halt execution by default.
+
 ## [0.2.0] - 2026-04-22
 
 ### Added
@@ -53,7 +63,7 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 - `Bus` trait for pluggable memory and I/O backends
 - `alu`, `addressing`, `bus`, and `registers` public modules
 
-[Unreleased]: https://github.com/c0rner/mc6809-core/compare/v0.1.2...HEAD
+[Unreleased]: https://github.com/c0rner/mc6809-core/compare/v0.2.0...HEAD
 [0.1.2]: https://github.com/c0rner/mc6809-core/compare/v0.1.1...v0.1.2
 [0.1.1]: https://github.com/c0rner/mc6809-core/compare/v0.1.0...v0.1.1
 [0.1.0]: https://github.com/c0rner/mc6809-core/releases/tag/v0.1.0
