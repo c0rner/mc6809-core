@@ -4,7 +4,7 @@ use std::process;
 
 use mc6809_core::{Cpu, Memory};
 
-/// Simple 64KB flat RAM bus for testing.
+/// Simple 64KB flat RAM for testing.
 struct FlatMem {
     mem: Box<[u8; 65536]>,
 }
@@ -48,16 +48,18 @@ fn main() {
 
     if args.len() < 3 {
         eprintln!(
-            "Usage: {} <binary-file> <load-address-hex> [--trace] [--max-cycles N]",
+            "Usage: {} <binary-file> <load-address-hex> [--trace] [--max-cycles N] [--stop-on-illegal]",
             args[0]
         );
         eprintln!();
         eprintln!("  Loads a raw binary at the specified address, sets the reset vector,");
         eprintln!("  and runs the 6809 CPU until it halts or exceeds the cycle limit.");
+        eprintln!("  Illegal opcodes are reported but do not stop execution unless requested.");
         eprintln!();
         eprintln!("Options:");
         eprintln!("  --trace          Print register state after each instruction");
-        eprintln!("  --max-cycles N   Stop after N cycles (default: 1000000)");
+        eprintln!("  --max-cycles N   Stop after N cycles (default: 1,000,000)");
+        eprintln!("  --stop-on-illegal  Stop after the first illegal opcode is executed");
         process::exit(1);
     }
 
@@ -68,12 +70,14 @@ fn main() {
     });
 
     let mut trace = false;
-    let mut max_cycles: u64 = 1_000;
+    let mut max_cycles: u64 = 1_000_000;
+    let mut stop_on_illegal = false;
 
     let mut i = 3;
     while i < args.len() {
         match args[i].as_str() {
             "--trace" => trace = true,
+            "--stop-on-illegal" => stop_on_illegal = true,
             "--max-cycles" => {
                 i += 1;
                 max_cycles = args.get(i).and_then(|s| s.parse().ok()).unwrap_or_else(|| {
@@ -110,7 +114,7 @@ fn main() {
     println!("Initial state: {:?}", cpu);
     println!();
 
-    while cpu.cycles < max_cycles && !cpu.halted {
+    while cpu.cycles() < max_cycles && !cpu.halted() {
         if trace {
             print!("{:?}  ", cpu);
         }
@@ -118,13 +122,21 @@ fn main() {
         if trace {
             println!("({} cycles)", cyc);
         }
+        if stop_on_illegal && cpu.illegal() {
+            break;
+        }
     }
 
     println!();
-    if cpu.halted {
-        println!("CPU halted after {} cycles", cpu.cycles);
+    if cpu.halted() {
+        println!("CPU halted after {} cycles", cpu.cycles());
+    } else if stop_on_illegal && cpu.illegal() {
+        println!("Stopped on illegal opcode after {} cycles", cpu.cycles());
     } else {
         println!("Cycle limit ({}) reached", max_cycles);
+    }
+    if cpu.illegal() {
+        println!("Note: at least one illegal opcode was executed");
     }
     println!("Final state: {:?}", cpu);
 }

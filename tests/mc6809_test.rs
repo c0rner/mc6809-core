@@ -25,24 +25,26 @@ const BINARY: &[u8] = include_bytes!("../asm/mc6809_test.bin");
 /// and assert that every test passed.
 #[test]
 fn mc6809_integration() {
-    let mut bus = TestHarness::new();
-    bus.load(BINARY, 0x0000);
+    let mut system = TestHarness::new();
+    system.load(BINARY, 0x0000);
 
     let mut cpu = Cpu::new();
-    cpu.reset(&mut bus);
+    cpu.reset(&mut system);
 
-    match run_to_halt(&mut cpu, &mut bus) {
+    match run_to_halt(&mut cpu, &mut system) {
         HaltReason::Pass(_) => {}
         HaltReason::Fail(test_num) => {
             panic!(
                 "Assembly test {:02} FAILED  (PC={:#06X}, cycles={})",
-                test_num, cpu.reg.pc, cpu.cycles,
+                test_num,
+                cpu.registers().pc,
+                cpu.cycles(),
             );
         }
         HaltReason::CycleLimit => {
             panic!(
                 "Cycle limit exceeded without pass/fail signal  (PC={:#06X})",
-                cpu.reg.pc,
+                cpu.registers().pc,
             );
         }
     }

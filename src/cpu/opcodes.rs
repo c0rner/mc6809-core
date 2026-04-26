@@ -18,14 +18,17 @@ mod page0;
 mod page1;
 mod page2;
 
-use crate::bus::Memory;
 use crate::cpu::Cpu;
+use crate::memory::Memory;
 
 /// Returns the base cycle count for a 6809 instruction.
 ///
 /// Pass the raw instruction bytes starting at the opcode byte. The function
 /// inspects `bytes[0]` to detect the page prefix (0x10 = page 1, 0x11 = page 2)
 /// and dispatches to the appropriate cycle table.
+///
+/// Repeated page-prefix chaining is intentionally unsupported: only the first
+/// leading `0x10` or `0x11` is recognised as a page selector.
 ///
 /// Returns `0` for an empty slice or an unrecognised sub-opcode.
 pub fn instruction_cycles(bytes: &[u8]) -> u8 {
@@ -38,6 +41,10 @@ pub fn instruction_cycles(bytes: &[u8]) -> u8 {
 }
 
 /// Execute a single opcode (already fetched).
+///
+/// Repeated page-prefix chaining is intentionally unsupported: if a page
+/// prefix fetches another prefix as its sub-opcode, that second prefix is
+/// handled as the page-local opcode byte rather than being discarded.
 impl Cpu {
     pub(crate) fn execute(&mut self, mem: &mut impl Memory, opcode: u8) {
         match opcode {

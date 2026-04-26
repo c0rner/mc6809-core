@@ -17,8 +17,8 @@
 //! source: <https://github.com/hoglet67/6809Decoder/wiki/Undocumented-6809-Behaviours>
 
 use crate::alu;
-use crate::bus::Memory;
 use crate::cpu::Cpu;
+use crate::memory::Memory;
 use crate::registers::{CC_C, CC_F, CC_H, CC_I, CC_N, CC_V, CC_Z};
 
 /// Base cycle counts for Page 0 opcodes (0x00..0xFF).
