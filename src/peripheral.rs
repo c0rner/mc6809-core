@@ -18,8 +18,8 @@ use std::ops::{BitAnd, BitAndAssign, BitOr, BitOrAssign, BitXor, BitXorAssign, N
 /// Interrupt and control signals returned by [`Clocked::tick`].
 ///
 /// Each flag corresponds to a physical input pin on the 6809 CPU.
-/// Signals can be combined with `|` and tested with [`contains`](Self::contains)
-/// or [`available`](Self::available). The default is all signals de-asserted.
+/// Signals can be combined with `|` and tested with [`contains`](Self::contains).
+/// The default is all signals de-asserted.
 ///
 /// # Example
 /// ```
