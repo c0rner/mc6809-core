@@ -58,7 +58,7 @@ fn main() {
         eprintln!();
         eprintln!("Options:");
         eprintln!("  --trace          Print register state after each instruction");
-        eprintln!("  --max-cycles N   Stop after N cycles (default: 1000000)");
+        eprintln!("  --max-cycles N   Stop after N cycles (default: 1,000,000)");
         eprintln!("  --stop-on-illegal  Stop after the first illegal opcode is executed");
         process::exit(1);
     }
@@ -70,7 +70,7 @@ fn main() {
     });
 
     let mut trace = false;
-    let mut max_cycles: u64 = 1_000;
+    let mut max_cycles: u64 = 1_000_000;
     let mut stop_on_illegal = false;
 
     let mut i = 3;
