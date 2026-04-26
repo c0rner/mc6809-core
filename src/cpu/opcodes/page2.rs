@@ -19,8 +19,8 @@
 //! source: <https://github.com/hoglet67/6809Decoder/wiki/Undocumented-6809-Behaviours>
 
 use crate::alu;
-use crate::bus::Memory;
 use crate::cpu::Cpu;
+use crate::memory::Memory;
 
 /// Base cycle counts for Page 2 opcodes.
 #[rustfmt::skip]

@@ -119,12 +119,12 @@ impl Memory for TestHarness {
 /// Run the CPU until it signals pass/fail or exhausts the cycle budget.
 ///
 /// Illegal opcodes do not stop execution by themselves; callers that want
-/// that policy should check `cpu.illegal` after each step. Before each
+/// that policy should check `cpu.illegal()` after each step. Before each
 /// instruction, interrupt-line state written by the test program via the
 /// trigger registers is applied to the CPU so the 6809 sees them on the very
 /// next step.
 pub fn run_to_halt(cpu: &mut Cpu, system: &mut TestHarness) -> HaltReason {
-    while cpu.cycles < MAX_CYCLES {
+    while cpu.cycles() < MAX_CYCLES {
         // Drive interrupt lines from the bus trigger registers.
         cpu.set_irq(system.irq_asserted);
         cpu.set_firq(system.firq_asserted);

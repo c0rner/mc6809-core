@@ -4,19 +4,11 @@ mc6809-core is a small, focused Rust library implementing the Motorola 6809 CPU 
 
 Features
 - Accurate 6809 instruction execution and addressing modes
-- Modular design: separate `alu`, `addressing`, `bus`, `registers` modules
 - A `Memory` trait for pluggable memory and I/O backends
-- A `Bus` trait for peripheral timing and interrupt signal delivery, kept separate from memory access
+- A `Clocked` trait for peripheral timing and interrupt signal delivery, kept separate from memory access
 - Lightweight API suitable for embedding in emulators, disassemblers, and debuggers
 
-Public modules
-- `addressing` — addressing mode helpers
-- `alu` — arithmetic and logic operations
-- `bus` — `Memory` trait for address/data bus access; `Bus` trait for peripheral tick and interrupt signals
-- `registers` — CPU register and status types
-
 Quick example
-
 ```rust
 use mc6809_core::{Cpu, Memory};
 
@@ -36,28 +28,33 @@ mem.0[0x0400] = 0x12;
 
 let mut cpu = Cpu::new();
 cpu.reset(&mut mem);
-assert_eq!(cpu.reg.pc, 0x0400);
+assert_eq!(cpu.registers().pc, 0x0400);
 cpu.step(&mut mem);
-assert_eq!(cpu.reg.pc, 0x0401);
+assert_eq!(cpu.registers().pc, 0x0401);
 ```
 
 Systems with peripherals implement both traits on the same type. The `Memory` trait is
-passed to the CPU, while `Bus::tick` is called separately by the host loop:
+passed to the CPU, while `Clocked::tick` is called separately by the host loop:
 
-```rust,ignore
+```rust
 let signals = system.tick(elapsed_cycles);
-cpu.set_irq(signals.irq);
-cpu.set_firq(signals.firq);
-if signals.nmi {
+// IRQ and FIRQ are level-triggered: always mirror both asserted and
+// de-asserted state so the CPU sees a cleared state.
+cpu.set_irq(signals.contains(BusSignals::IRQ));
+cpu.set_firq(signals.contains(BusSignals::FIRQ));
+if signals.contains(BusSignals::NMI) {
     cpu.trigger_nmi();
 }
-if cpu.illegal {
+if signals.contains(BusSignals::RESET) {
+    cpu.reset(&mut system);
+}
+if cpu.illegal() {
     // Optional host policy: stop, log, or ignore.
 }
 ```
 
 Behavior notes
-- Illegal opcodes set `Cpu::illegal` but do not halt the CPU. This matches the default 6809-style execution model and leaves trap/stop policy to the host.
+- Illegal opcodes set `Cpu::illegal()` but do not halt the CPU. This matches the default 6809-style execution model and leaves trap/stop policy to the host.
 - Repeated page-prefix chaining (`0x10`/`0x11` after an initial page prefix) is intentionally not implemented. Only a single leading page prefix is recognised.
 
 Building and testing

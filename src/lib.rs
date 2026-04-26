@@ -42,20 +42,21 @@
 //!
 //! let mut cpu = Cpu::new();
 //! cpu.reset(&mut mem);
-//! assert_eq!(cpu.reg.pc, 0x0400);
+//! assert_eq!(cpu.registers().pc, 0x0400);
 //! cpu.step(&mut mem);
-//! assert_eq!(cpu.reg.pc, 0x0401);
+//! assert_eq!(cpu.registers().pc, 0x0401);
 //! ```
 
 pub mod addressing;
 pub mod alu;
-pub mod bus;
 mod cpu;
+pub mod memory;
+pub mod peripheral;
 pub mod registers;
 
-pub use bus::{Bus, BusSignals, Memory};
-pub use cpu::Cpu;
-pub use cpu::instruction_cycles;
+pub use cpu::{Cpu, RegistersMut, instruction_cycles};
+pub use memory::Memory;
+pub use peripheral::{Clocked, BusSignals};
 pub use registers::{ConditionCodes, Registers};
 
 #[cfg(test)]

@@ -4,7 +4,7 @@ use std::process;
 
 use mc6809_core::{Cpu, Memory};
 
-/// Simple 64KB flat RAM bus for testing.
+/// Simple 64KB flat RAM for testing.
 struct FlatMem {
     mem: Box<[u8; 65536]>,
 }
@@ -114,7 +114,7 @@ fn main() {
     println!("Initial state: {:?}", cpu);
     println!();
 
-    while cpu.cycles < max_cycles && !cpu.halted {
+    while cpu.cycles() < max_cycles && !cpu.halted() {
         if trace {
             print!("{:?}  ", cpu);
         }
@@ -122,20 +122,20 @@ fn main() {
         if trace {
             println!("({} cycles)", cyc);
         }
-        if stop_on_illegal && cpu.illegal {
+        if stop_on_illegal && cpu.illegal() {
             break;
         }
     }
 
     println!();
-    if cpu.halted {
-        println!("CPU halted after {} cycles", cpu.cycles);
-    } else if stop_on_illegal && cpu.illegal {
-        println!("Stopped on illegal opcode after {} cycles", cpu.cycles);
+    if cpu.halted() {
+        println!("CPU halted after {} cycles", cpu.cycles());
+    } else if stop_on_illegal && cpu.illegal() {
+        println!("Stopped on illegal opcode after {} cycles", cpu.cycles());
     } else {
         println!("Cycle limit ({}) reached", max_cycles);
     }
-    if cpu.illegal {
+    if cpu.illegal() {
         println!("Note: at least one illegal opcode was executed");
     }
     println!("Final state: {:?}", cpu);

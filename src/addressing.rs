@@ -17,8 +17,8 @@
 //! The post-byte encodes the index register, offset type, and indirection.
 //! Returns `(effective_address, extra_cycles)`.
 
-use crate::bus::Memory;
 use crate::cpu::Cpu;
+use crate::memory::Memory;
 
 /// Decode an indexed addressing post-byte and compute the effective address.
 ///
@@ -80,13 +80,13 @@ pub fn indexed(cpu: &mut Cpu, mem: &mut impl Memory) -> (u16, u8) {
         // 0x05: B,R
         0x05 => {
             let reg = index_reg(cpu, post);
-            let offset = cpu.reg.b() as i8 as i16 as u16;
+            let offset = cpu.registers().b() as i8 as i16 as u16;
             (reg.wrapping_add(offset), 1)
         }
         // 0x06: A,R
         0x06 => {
             let reg = index_reg(cpu, post);
-            let offset = cpu.reg.a() as i8 as i16 as u16;
+            let offset = cpu.registers().a() as i8 as i16 as u16;
             (reg.wrapping_add(offset), 1)
         }
         // 0x08: 8-bit offset, R
@@ -104,19 +104,19 @@ pub fn indexed(cpu: &mut Cpu, mem: &mut impl Memory) -> (u16, u8) {
         // 0x0B: D,R
         0x0B => {
             let reg = index_reg(cpu, post);
-            let offset = cpu.reg.d;
+            let offset = cpu.registers().d;
             (reg.wrapping_add(offset), 4)
         }
         // 0x0C: 8-bit offset, PC
         0x0C => {
             let offset = cpu.fetch_byte(mem) as i8 as i16 as u16;
-            let ea = cpu.reg.pc.wrapping_add(offset);
+            let ea = cpu.registers().pc.wrapping_add(offset);
             (ea, 1)
         }
         // 0x0D: 16-bit offset, PC
         0x0D => {
             let offset = cpu.fetch_word(mem);
-            let ea = cpu.reg.pc.wrapping_add(offset);
+            let ea = cpu.registers().pc.wrapping_add(offset);
             (ea, 5)
         }
         // 0x0F: Extended indirect [address] (only valid with indirect bit)
@@ -146,10 +146,10 @@ pub fn indexed(cpu: &mut Cpu, mem: &mut impl Memory) -> (u16, u8) {
 /// Read the index register selected by bits 6-5 of the post-byte.
 fn index_reg(cpu: &Cpu, post: u8) -> u16 {
     match (post >> 5) & 0x03 {
-        0 => cpu.reg.x,
-        1 => cpu.reg.y,
-        2 => cpu.reg.u,
-        3 => cpu.reg.s,
+        0 => cpu.registers().x,
+        1 => cpu.registers().y,
+        2 => cpu.registers().u,
+        3 => cpu.registers().s,
         _ => unreachable!(),
     }
 }
@@ -157,11 +157,11 @@ fn index_reg(cpu: &Cpu, post: u8) -> u16 {
 /// Write to the index register selected by bits 6-5 of the post-byte.
 fn set_index_reg(cpu: &mut Cpu, post: u8, val: u16) {
     match (post >> 5) & 0x03 {
-        0 => cpu.reg.x = val,
-        1 => cpu.reg.y = val,
-        2 => cpu.reg.u = val,
+        0 => cpu.registers_mut().x = val,
+        1 => cpu.registers_mut().y = val,
+        2 => cpu.registers_mut().u = val,
         3 => {
-            cpu.reg.s = val;
+            cpu.registers_mut().s = val;
             cpu.arm_nmi();
         }
         _ => unreachable!(),

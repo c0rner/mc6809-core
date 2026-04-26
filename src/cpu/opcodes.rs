@@ -18,8 +18,8 @@ mod page0;
 mod page1;
 mod page2;
 
-use crate::bus::Memory;
 use crate::cpu::Cpu;
+use crate::memory::Memory;
 
 /// Returns the base cycle count for a 6809 instruction.
 ///

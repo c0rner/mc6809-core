@@ -12,7 +12,7 @@
 //   See the License for the specific language governing permissions and
 //   limitations under the License.
 
-use crate::bus::Memory;
+use crate::memory::Memory;
 use crate::registers::Registers;
 
 mod opcodes;
@@ -38,20 +38,13 @@ pub const VEC_SWI3: u16 = 0xFFF2;
 /// Motorola 6809 CPU emulator.
 pub struct Cpu {
     /// Programmer-visible registers.
-    pub reg: Registers,
+    reg: Registers,
     /// Total elapsed cycles since reset.
-    pub cycles: u64,
+    cycles: u64,
     /// CPU execution has been explicitly halted by an instruction.
-    ///
-    /// Illegal opcodes do not set this flag; they only set [`Self::illegal`]
-    /// so the host can decide whether to keep running or stop.
-    pub halted: bool,
+    halted: bool,
     /// Sticky status bit set when an illegal opcode is executed.
-    ///
-    /// The 6809 keeps running after undefined opcodes, so this flag does not
-    /// halt the CPU by itself. Hosts that want trap-like behaviour can check
-    /// this flag after each [`Self::step`] and stop on their own policy.
-    pub illegal: bool,
+    illegal: bool,
 
     // ---- interrupt state ----
     /// NMI is armed (becomes true after first write to S).
@@ -100,6 +93,69 @@ impl Cpu {
         self.irq_line = false;
         self.cwai = false;
         self.sync = false;
+    }
+
+    /// Read-only access to the programmer-visible registers.
+    pub fn registers(&self) -> &Registers {
+        &self.reg
+    }
+
+    /// Mutable access to the programmer-visible registers via an RAII guard.
+    ///
+    /// The guard implements [`Deref`] and [`DerefMut`] for [`Registers`], giving
+    /// transparent read/write access to all fields. On drop it checks whether the
+    /// hardware stack pointer (S) changed and, if so, arms the NMI — matching the
+    /// real 6809 behaviour where the first write to S enables edge-triggered NMI.
+    ///
+    /// Note: the guard detects S changes by comparing the value on entry with the
+    /// value on drop. Writing S to the value it already holds will not arm NMI, but
+    /// because `nmi_armed` is sticky (never cleared) this is inconsequential in
+    /// practice.
+    ///
+    /// # Example
+    /// ```ignore
+    /// cpu.registers_mut().s = 0x8000; // arms NMI
+    /// {
+    ///     let mut r = cpu.registers_mut();
+    ///     r.s -= 2;
+    ///     mem[r.s as usize] = lo;
+    /// } // NMI armed here via Drop
+    /// ```
+    pub fn registers_mut(&mut self) -> RegistersMut<'_> {
+        let prev_s = self.reg.s;
+        RegistersMut { cpu: self, prev_s }
+    }
+
+    /// Total elapsed cycles since the last [`Self::reset`].
+    pub fn cycles(&self) -> u64 {
+        self.cycles
+    }
+
+    /// `true` if the CPU has been halted by a halt instruction.
+    ///
+    /// Illegal opcodes do not set this flag; they only set [`Self::illegal`]
+    /// so the host can decide whether to keep running or stop.
+    pub fn halted(&self) -> bool {
+        self.halted
+    }
+
+    /// Assert or de-assert the halted state.
+    pub fn set_halted(&mut self, active: bool) {
+        self.halted = active;
+    }
+
+    /// Sticky flag set when an illegal opcode is executed.
+    ///
+    /// The 6809 keeps running after undefined opcodes, so this flag does not
+    /// halt the CPU by itself. Hosts that want trap-like behaviour can check
+    /// this flag after each [`Self::step`] and stop on their own policy.
+    pub fn illegal(&self) -> bool {
+        self.illegal
+    }
+
+    /// Clear the illegal opcode flag.
+    pub fn clear_illegal(&mut self) {
+        self.illegal = false;
     }
 
     /// Assert or de-assert the IRQ line (level-triggered).
@@ -339,6 +395,41 @@ impl Cpu {
 impl Default for Cpu {
     fn default() -> Self {
         Self::new()
+    }
+}
+
+// ---------------------------------------------------------------------------
+// RegistersMut — RAII guard for mutable register access
+// ---------------------------------------------------------------------------
+
+/// RAII guard returned by [`Cpu::registers_mut`].
+///
+/// Dereferences to [`Registers`], giving full read/write access to all
+/// programmer-visible registers. On drop the guard arms the NMI if the
+/// hardware stack pointer (S) changed during the guard's lifetime.
+pub struct RegistersMut<'a> {
+    cpu: &'a mut Cpu,
+    prev_s: u16,
+}
+
+impl std::ops::Deref for RegistersMut<'_> {
+    type Target = Registers;
+    fn deref(&self) -> &Registers {
+        &self.cpu.reg
+    }
+}
+
+impl std::ops::DerefMut for RegistersMut<'_> {
+    fn deref_mut(&mut self) -> &mut Registers {
+        &mut self.cpu.reg
+    }
+}
+
+impl Drop for RegistersMut<'_> {
+    fn drop(&mut self) {
+        if self.cpu.reg.s != self.prev_s {
+            self.cpu.nmi_armed = true;
+        }
     }
 }
 

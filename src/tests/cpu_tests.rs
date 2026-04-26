@@ -67,7 +67,7 @@ fn setup(program: &[u8], start: u16) -> (Cpu, TestMem) {
 fn nop_advances_pc() {
     let (mut cpu, mut mem) = setup(&[0x12], 0x0400); // NOP
     let cyc = cpu.step(&mut mem);
-    assert_eq!(cpu.reg.pc, 0x0401);
+    assert_eq!(cpu.registers().pc, 0x0401);
     assert_eq!(cyc, 2);
 }
 
@@ -75,33 +75,33 @@ fn nop_advances_pc() {
 fn lda_immediate() {
     let (mut cpu, mut mem) = setup(&[0x86, 0x42], 0x0400); // LDA #$42
     cpu.step(&mut mem);
-    assert_eq!(cpu.reg.a(), 0x42);
-    assert!(!cpu.reg.cc.zero());
-    assert!(!cpu.reg.cc.negative());
+    assert_eq!(cpu.registers().a(), 0x42);
+    assert!(!cpu.registers().cc.zero());
+    assert!(!cpu.registers().cc.negative());
 }
 
 #[test]
 fn ldb_immediate() {
     let (mut cpu, mut mem) = setup(&[0xC6, 0xFF], 0x0400); // LDB #$FF
     cpu.step(&mut mem);
-    assert_eq!(cpu.reg.b(), 0xFF);
-    assert!(cpu.reg.cc.negative());
+    assert_eq!(cpu.registers().b(), 0xFF);
+    assert!(cpu.registers().cc.negative());
 }
 
 #[test]
 fn ldd_immediate() {
     let (mut cpu, mut mem) = setup(&[0xCC, 0x12, 0x34], 0x0400); // LDD #$1234
     cpu.step(&mut mem);
-    assert_eq!(cpu.reg.d, 0x1234);
-    assert_eq!(cpu.reg.a(), 0x12);
-    assert_eq!(cpu.reg.b(), 0x34);
+    assert_eq!(cpu.registers().d, 0x1234);
+    assert_eq!(cpu.registers().a(), 0x12);
+    assert_eq!(cpu.registers().b(), 0x34);
 }
 
 #[test]
 fn ldx_immediate() {
     let (mut cpu, mut mem) = setup(&[0x8E, 0xAB, 0xCD], 0x0400); // LDX #$ABCD
     cpu.step(&mut mem);
-    assert_eq!(cpu.reg.x, 0xABCD);
+    assert_eq!(cpu.registers().x, 0xABCD);
 }
 
 #[test]
@@ -119,7 +119,7 @@ fn adda_immediate() {
     let (mut cpu, mut mem) = setup(&[0x86, 0x10, 0x8B, 0x20], 0x0400);
     cpu.step(&mut mem);
     cpu.step(&mut mem);
-    assert_eq!(cpu.reg.a(), 0x30);
+    assert_eq!(cpu.registers().a(), 0x30);
 }
 
 #[test]
@@ -128,7 +128,7 @@ fn suba_immediate() {
     let (mut cpu, mut mem) = setup(&[0x86, 0x30, 0x80, 0x10], 0x0400);
     cpu.step(&mut mem);
     cpu.step(&mut mem);
-    assert_eq!(cpu.reg.a(), 0x20);
+    assert_eq!(cpu.registers().a(), 0x20);
 }
 
 #[test]
@@ -137,8 +137,8 @@ fn cmpa_immediate_flags() {
     let (mut cpu, mut mem) = setup(&[0x86, 0x42, 0x81, 0x42], 0x0400);
     cpu.step(&mut mem);
     cpu.step(&mut mem);
-    assert!(cpu.reg.cc.zero());
-    assert_eq!(cpu.reg.a(), 0x42); // CMP doesn't change A
+    assert!(cpu.registers().cc.zero());
+    assert_eq!(cpu.registers().a(), 0x42); // CMP doesn't change A
 }
 
 #[test]
@@ -147,8 +147,8 @@ fn anda_immediate() {
     let (mut cpu, mut mem) = setup(&[0x86, 0xFF, 0x84, 0x0F], 0x0400);
     cpu.step(&mut mem);
     cpu.step(&mut mem);
-    assert_eq!(cpu.reg.a(), 0x0F);
-    assert!(!cpu.reg.cc.overflow());
+    assert_eq!(cpu.registers().a(), 0x0F);
+    assert!(!cpu.registers().cc.overflow());
 }
 
 #[test]
@@ -157,7 +157,7 @@ fn ora_immediate() {
     let (mut cpu, mut mem) = setup(&[0x86, 0xF0, 0x8A, 0x0F], 0x0400);
     cpu.step(&mut mem);
     cpu.step(&mut mem);
-    assert_eq!(cpu.reg.a(), 0xFF);
+    assert_eq!(cpu.registers().a(), 0xFF);
 }
 
 #[test]
@@ -166,7 +166,7 @@ fn eora_immediate() {
     let (mut cpu, mut mem) = setup(&[0x86, 0xFF, 0x88, 0x0F], 0x0400);
     cpu.step(&mut mem);
     cpu.step(&mut mem);
-    assert_eq!(cpu.reg.a(), 0xF0);
+    assert_eq!(cpu.registers().a(), 0xF0);
 }
 
 #[test]
@@ -175,7 +175,7 @@ fn nega() {
     let (mut cpu, mut mem) = setup(&[0x86, 0x01, 0x40], 0x0400);
     cpu.step(&mut mem);
     cpu.step(&mut mem);
-    assert_eq!(cpu.reg.a(), 0xFF);
+    assert_eq!(cpu.registers().a(), 0xFF);
 }
 
 #[test]
@@ -184,7 +184,7 @@ fn coma() {
     let (mut cpu, mut mem) = setup(&[0x86, 0x55, 0x43], 0x0400);
     cpu.step(&mut mem);
     cpu.step(&mut mem);
-    assert_eq!(cpu.reg.a(), 0xAA);
+    assert_eq!(cpu.registers().a(), 0xAA);
 }
 
 #[test]
@@ -193,10 +193,10 @@ fn inca_deca() {
     let (mut cpu, mut mem) = setup(&[0x86, 0x7F, 0x4C, 0x4A], 0x0400);
     cpu.step(&mut mem);
     cpu.step(&mut mem); // INCA
-    assert_eq!(cpu.reg.a(), 0x80);
-    assert!(cpu.reg.cc.overflow());
+    assert_eq!(cpu.registers().a(), 0x80);
+    assert!(cpu.registers().cc.overflow());
     cpu.step(&mut mem); // DECA
-    assert_eq!(cpu.reg.a(), 0x7F);
+    assert_eq!(cpu.registers().a(), 0x7F);
 }
 
 #[test]
@@ -205,9 +205,9 @@ fn clra() {
     let (mut cpu, mut mem) = setup(&[0x86, 0x42, 0x4F], 0x0400);
     cpu.step(&mut mem);
     cpu.step(&mut mem);
-    assert_eq!(cpu.reg.a(), 0x00);
-    assert!(cpu.reg.cc.zero());
-    assert!(!cpu.reg.cc.carry());
+    assert_eq!(cpu.registers().a(), 0x00);
+    assert!(cpu.registers().cc.zero());
+    assert!(!cpu.registers().cc.carry());
 }
 
 #[test]
@@ -216,8 +216,8 @@ fn lsla() {
     let (mut cpu, mut mem) = setup(&[0x86, 0x81, 0x48], 0x0400);
     cpu.step(&mut mem);
     cpu.step(&mut mem);
-    assert_eq!(cpu.reg.a(), 0x02);
-    assert!(cpu.reg.cc.carry()); // bit 7 was set
+    assert_eq!(cpu.registers().a(), 0x02);
+    assert!(cpu.registers().cc.carry()); // bit 7 was set
 }
 
 #[test]
@@ -226,8 +226,8 @@ fn lsra() {
     let (mut cpu, mut mem) = setup(&[0x86, 0x03, 0x44], 0x0400);
     cpu.step(&mut mem);
     cpu.step(&mut mem);
-    assert_eq!(cpu.reg.a(), 0x01);
-    assert!(cpu.reg.cc.carry()); // bit 0 was set
+    assert_eq!(cpu.registers().a(), 0x01);
+    assert!(cpu.registers().cc.carry()); // bit 0 was set
 }
 
 // ---- Jump tests ----
@@ -237,7 +237,7 @@ fn jmp_direct() {
     // JMP $1234
     let (mut cpu, mut mem) = setup(&[0x7E, 0x12, 0x34], 0x0400);
     cpu.step(&mut mem);
-    assert_eq!(cpu.reg.pc, 0x1234);
+    assert_eq!(cpu.registers().pc, 0x1234);
 }
 
 #[test]
@@ -249,7 +249,7 @@ fn jmp_indexed() {
     mem.mem[0x0011] = 0x78;
     cpu.step(&mut mem);
     println!("{:?}", cpu);
-    assert_eq!(cpu.reg.pc, 0x5678);
+    assert_eq!(cpu.registers().pc, 0x5678);
 }
 
 // ---- Branch tests ----
@@ -259,7 +259,7 @@ fn bra_always() {
     // BRA +2 (skip next 2 bytes)
     let (mut cpu, mut mem) = setup(&[0x20, 0x02, 0x12, 0x12, 0x12], 0x0400);
     cpu.step(&mut mem);
-    assert_eq!(cpu.reg.pc, 0x0404); // 0x0402 + 2
+    assert_eq!(cpu.registers().pc, 0x0404); // 0x0402 + 2
 }
 
 #[test]
@@ -268,7 +268,7 @@ fn beq_taken() {
     let (mut cpu, mut mem) = setup(&[0x86, 0x00, 0x27, 0x02, 0x12, 0x12, 0x12], 0x0400);
     cpu.step(&mut mem); // LDA #0 → Z set
     cpu.step(&mut mem); // BEQ +2
-    assert_eq!(cpu.reg.pc, 0x0406);
+    assert_eq!(cpu.registers().pc, 0x0406);
 }
 
 #[test]
@@ -277,7 +277,7 @@ fn beq_not_taken() {
     let (mut cpu, mut mem) = setup(&[0x86, 0x01, 0x27, 0x02, 0x12], 0x0400);
     cpu.step(&mut mem); // LDA #1 → Z clear
     cpu.step(&mut mem); // BEQ +2 (not taken)
-    assert_eq!(cpu.reg.pc, 0x0404); // fell through
+    assert_eq!(cpu.registers().pc, 0x0404); // fell through
 }
 
 #[test]
@@ -286,7 +286,7 @@ fn bne_taken() {
     let (mut cpu, mut mem) = setup(&[0x86, 0x01, 0x26, 0x02, 0x12, 0x12, 0x12], 0x0400);
     cpu.step(&mut mem);
     cpu.step(&mut mem);
-    assert_eq!(cpu.reg.pc, 0x0406);
+    assert_eq!(cpu.registers().pc, 0x0406);
 }
 
 #[test]
@@ -296,7 +296,7 @@ fn bra_backward() {
     cpu.step(&mut mem); // NOP → PC=0x0401
     cpu.step(&mut mem); // NOP → PC=0x0402
     cpu.step(&mut mem); // BRA -2 → PC=0x0402
-    assert_eq!(cpu.reg.pc, 0x0402);
+    assert_eq!(cpu.registers().pc, 0x0402);
 }
 
 // ---- Subroutine tests ----
@@ -315,11 +315,11 @@ fn bsr_rts() {
         0x0400,
     );
     // Set up S register
-    cpu.reg.s = 0x8000;
+    cpu.registers_mut().s = 0x8000;
     cpu.step(&mut mem); // BSR
-    assert_eq!(cpu.reg.pc, 0x0404);
+    assert_eq!(cpu.registers().pc, 0x0404);
     cpu.step(&mut mem); // RTS
-    assert_eq!(cpu.reg.pc, 0x0402); // returned to instruction after BSR
+    assert_eq!(cpu.registers().pc, 0x0402); // returned to instruction after BSR
 }
 
 #[test]
@@ -332,11 +332,11 @@ fn jsr_extended_rts() {
     );
     // Place RTS at 0x0410
     mem.mem[0x0410] = 0x39;
-    cpu.reg.s = 0x8000;
+    cpu.registers_mut().s = 0x8000;
     cpu.step(&mut mem); // JSR
-    assert_eq!(cpu.reg.pc, 0x0410);
+    assert_eq!(cpu.registers().pc, 0x0410);
     cpu.step(&mut mem); // RTS
-    assert_eq!(cpu.reg.pc, 0x0403);
+    assert_eq!(cpu.registers().pc, 0x0403);
 }
 
 // ---- Stack tests ----
@@ -353,15 +353,15 @@ fn pshs_puls_a() {
         ],
         0x0400,
     );
-    cpu.reg.s = 0x8000;
+    cpu.registers_mut().s = 0x8000;
     cpu.step(&mut mem); // LDA #$42
     cpu.step(&mut mem); // PSHS A
-    assert_eq!(cpu.reg.s, 0x7FFF);
+    assert_eq!(cpu.registers().s, 0x7FFF);
     cpu.step(&mut mem); // LDA #$00
-    assert_eq!(cpu.reg.a(), 0x00);
+    assert_eq!(cpu.registers().a(), 0x00);
     cpu.step(&mut mem); // PULS A
-    assert_eq!(cpu.reg.a(), 0x42);
-    assert_eq!(cpu.reg.s, 0x8000);
+    assert_eq!(cpu.registers().a(), 0x42);
+    assert_eq!(cpu.registers().s, 0x8000);
 }
 
 #[test]
@@ -374,21 +374,21 @@ fn pshs_puls_multiple() {
         ],
         0x0400,
     );
-    cpu.reg.s = 0x8000;
-    cpu.reg.set_a(0xAA);
-    cpu.reg.set_b(0xBB);
-    cpu.reg.x = 0x1234;
+    cpu.registers_mut().s = 0x8000;
+    cpu.registers_mut().set_a(0xAA);
+    cpu.registers_mut().set_b(0xBB);
+    cpu.registers_mut().x = 0x1234;
     cpu.step(&mut mem); // PSHS
-    assert_eq!(cpu.reg.s, 0x7FFC); // 4 bytes pushed (A=1, B=1, X=2)
+    assert_eq!(cpu.registers().s, 0x7FFC); // 4 bytes pushed (A=1, B=1, X=2)
     // Clobber registers
-    cpu.reg.set_a(0x00);
-    cpu.reg.set_b(0x00);
-    cpu.reg.x = 0x0000;
+    cpu.registers_mut().set_a(0x00);
+    cpu.registers_mut().set_b(0x00);
+    cpu.registers_mut().x = 0x0000;
     cpu.step(&mut mem); // PULS
-    assert_eq!(cpu.reg.a(), 0xAA);
-    assert_eq!(cpu.reg.b(), 0xBB);
-    assert_eq!(cpu.reg.x, 0x1234);
-    assert_eq!(cpu.reg.s, 0x8000);
+    assert_eq!(cpu.registers().a(), 0xAA);
+    assert_eq!(cpu.registers().b(), 0xBB);
+    assert_eq!(cpu.registers().x, 0x1234);
+    assert_eq!(cpu.registers().s, 0x8000);
 }
 
 // ---- Transfer / Exchange ----
@@ -405,8 +405,8 @@ fn tfr_a_to_b() {
     );
     cpu.step(&mut mem);
     cpu.step(&mut mem);
-    assert_eq!(cpu.reg.b(), 0x42);
-    assert_eq!(cpu.reg.a(), 0x42); // A unchanged
+    assert_eq!(cpu.registers().b(), 0x42);
+    assert_eq!(cpu.registers().a(), 0x42); // A unchanged
 }
 
 #[test]
@@ -422,8 +422,8 @@ fn exg_a_b() {
     cpu.step(&mut mem);
     cpu.step(&mut mem);
     cpu.step(&mut mem);
-    assert_eq!(cpu.reg.a(), 0x55);
-    assert_eq!(cpu.reg.b(), 0xAA);
+    assert_eq!(cpu.registers().a(), 0x55);
+    assert_eq!(cpu.registers().b(), 0xAA);
 }
 
 #[test]
@@ -438,7 +438,7 @@ fn tfr_d_to_x() {
     );
     cpu.step(&mut mem);
     cpu.step(&mut mem);
-    assert_eq!(cpu.reg.x, 0x1234);
+    assert_eq!(cpu.registers().x, 0x1234);
 }
 
 // ---- MUL ----
@@ -457,7 +457,7 @@ fn mul_instruction() {
     cpu.step(&mut mem);
     cpu.step(&mut mem);
     cpu.step(&mut mem);
-    assert_eq!(cpu.reg.d, 200);
+    assert_eq!(cpu.registers().d, 200);
 }
 
 // ---- ABX ----
@@ -476,7 +476,7 @@ fn abx_instruction() {
     cpu.step(&mut mem);
     cpu.step(&mut mem);
     cpu.step(&mut mem);
-    assert_eq!(cpu.reg.x, 0x1042);
+    assert_eq!(cpu.registers().x, 0x1042);
 }
 
 // ---- SEX ----
@@ -493,8 +493,8 @@ fn sex_instruction() {
     );
     cpu.step(&mut mem);
     cpu.step(&mut mem);
-    assert_eq!(cpu.reg.d, 0xFF80);
-    assert!(cpu.reg.cc.negative());
+    assert_eq!(cpu.registers().d, 0xFF80);
+    assert!(cpu.registers().cc.negative());
 }
 
 // ---- ORCC / ANDCC ----
@@ -509,9 +509,9 @@ fn orcc_andcc() {
         0x0400,
     );
     cpu.step(&mut mem);
-    assert_eq!(cpu.reg.cc.to_byte(), 0xFF);
+    assert_eq!(cpu.registers().cc.to_byte(), 0xFF);
     cpu.step(&mut mem);
-    assert_eq!(cpu.reg.cc.to_byte(), 0x00);
+    assert_eq!(cpu.registers().cc.to_byte(), 0x00);
 }
 
 // ---- SUBD immediate ----
@@ -528,7 +528,7 @@ fn subd_immediate() {
     );
     cpu.step(&mut mem);
     cpu.step(&mut mem);
-    assert_eq!(cpu.reg.d, 0x0FFF);
+    assert_eq!(cpu.registers().d, 0x0FFF);
 }
 
 // ---- ADDD immediate ----
@@ -545,7 +545,7 @@ fn addd_immediate() {
     );
     cpu.step(&mut mem);
     cpu.step(&mut mem);
-    assert_eq!(cpu.reg.d, 0x1234);
+    assert_eq!(cpu.registers().d, 0x1234);
 }
 
 // ---- Indexed addressing basic ----
@@ -563,7 +563,7 @@ fn lda_indexed_zero_offset() {
     mem.mem[0x0500] = 0x42;
     cpu.step(&mut mem);
     cpu.step(&mut mem);
-    assert_eq!(cpu.reg.a(), 0x42);
+    assert_eq!(cpu.registers().a(), 0x42);
 }
 
 #[test]
@@ -579,7 +579,7 @@ fn lda_indexed_5bit_offset() {
     mem.mem[0x0503] = 0x99;
     cpu.step(&mut mem);
     cpu.step(&mut mem);
-    assert_eq!(cpu.reg.a(), 0x99);
+    assert_eq!(cpu.registers().a(), 0x99);
 }
 
 #[test]
@@ -595,8 +595,8 @@ fn lda_indexed_postinc2() {
     mem.mem[0x0500] = 0xAB;
     cpu.step(&mut mem);
     cpu.step(&mut mem);
-    assert_eq!(cpu.reg.a(), 0xAB);
-    assert_eq!(cpu.reg.x, 0x0502);
+    assert_eq!(cpu.registers().a(), 0xAB);
+    assert_eq!(cpu.registers().x, 0x0502);
 }
 
 #[test]
@@ -612,8 +612,8 @@ fn lda_indexed_predec2() {
     mem.mem[0x0500] = 0xCD;
     cpu.step(&mut mem);
     cpu.step(&mut mem);
-    assert_eq!(cpu.reg.a(), 0xCD);
-    assert_eq!(cpu.reg.x, 0x0500);
+    assert_eq!(cpu.registers().a(), 0xCD);
+    assert_eq!(cpu.registers().x, 0x0500);
 }
 
 // ---- LEAX ----
@@ -630,8 +630,8 @@ fn leax_indexed() {
     );
     cpu.step(&mut mem);
     cpu.step(&mut mem);
-    assert_eq!(cpu.reg.x, 0x1005);
-    assert!(!cpu.reg.cc.zero());
+    assert_eq!(cpu.registers().x, 0x1005);
+    assert!(!cpu.registers().cc.zero());
 }
 
 // ---- SWI ----
@@ -642,18 +642,18 @@ fn swi_instruction() {
         &[0x3F], // SWI
         0x0400,
     );
-    cpu.reg.s = 0x8000;
+    cpu.registers_mut().s = 0x8000;
     // Set SWI vector
     mem.mem[0xFFFA] = 0x10;
     mem.mem[0xFFFB] = 0x00;
 
     cpu.step(&mut mem);
-    assert_eq!(cpu.reg.pc, 0x1000);
-    assert!(cpu.reg.cc.irq_inhibit());
-    assert!(cpu.reg.cc.firq_inhibit());
-    assert!(cpu.reg.cc.entire());
+    assert_eq!(cpu.registers().pc, 0x1000);
+    assert!(cpu.registers().cc.irq_inhibit());
+    assert!(cpu.registers().cc.firq_inhibit());
+    assert!(cpu.registers().cc.entire());
     // S should have decremented by 12 bytes (entire state)
-    assert_eq!(cpu.reg.s, 0x8000 - 12);
+    assert_eq!(cpu.registers().s, 0x8000 - 12);
 }
 
 // ---- RTI (full from NMI) ----
@@ -667,22 +667,22 @@ fn rti_full() {
 
     let mut cpu = Cpu::new();
     cpu.reset(&mut mem);
-    cpu.reg.s = 0x8000;
+    cpu.registers_mut().s = 0x8000;
 
     // Manually push entire state (NMI style: CC, A, B, DP, X, Y, U, PC)
     let return_pc: u16 = 0x1234;
     let cc_byte: u8 = CC_E; // E=1 for full state
-    cpu.reg.s -= 1;
-    mem.mem[cpu.reg.s as usize] = (return_pc & 0xFF) as u8; // PC lo
-    cpu.reg.s -= 1;
-    mem.mem[cpu.reg.s as usize] = (return_pc >> 8) as u8; // PC hi
-    cpu.reg.s -= 9; // A, B, DP, X, Y, U; Skip 9 bytes (1+1+1+2+2+2) for remaining registers
-    cpu.reg.s -= 1;
-    mem.mem[cpu.reg.s as usize] = cc_byte; // CC
+    cpu.registers_mut().s -= 1;
+    mem.mem[cpu.registers().s as usize] = (return_pc & 0xFF) as u8; // PC lo
+    cpu.registers_mut().s -= 1;
+    mem.mem[cpu.registers().s as usize] = (return_pc >> 8) as u8; // PC hi
+    cpu.registers_mut().s -= 9; // A, B, DP, X, Y, U; Skip 9 bytes (1+1+1+2+2+2) for remaining registers
+    cpu.registers_mut().s -= 1;
+    mem.mem[cpu.registers().s as usize] = cc_byte; // CC
 
     cpu.step(&mut mem); // RTI
-    assert_eq!(cpu.reg.pc, 0x1234);
-    assert!(cpu.reg.cc.entire());
+    assert_eq!(cpu.registers().pc, 0x1234);
+    assert!(cpu.registers().cc.entire());
 }
 
 // ---- RTI (short from FIRQ) ----
@@ -696,21 +696,21 @@ fn rti_short() {
 
     let mut cpu = Cpu::new();
     cpu.reset(&mut mem);
-    cpu.reg.s = 0x8000;
+    cpu.registers_mut().s = 0x8000;
 
     // Manually push a short frame (FIRQ style: CC, PC)
     let return_pc: u16 = 0x1234;
     let cc_byte: u8 = 0x00; // E=0
-    cpu.reg.s -= 1;
-    mem.mem[cpu.reg.s as usize] = (return_pc & 0xFF) as u8; // PC lo
-    cpu.reg.s -= 1;
-    mem.mem[cpu.reg.s as usize] = (return_pc >> 8) as u8; // PC hi
-    cpu.reg.s -= 1;
-    mem.mem[cpu.reg.s as usize] = cc_byte; // CC
+    cpu.registers_mut().s -= 1;
+    mem.mem[cpu.registers().s as usize] = (return_pc & 0xFF) as u8; // PC lo
+    cpu.registers_mut().s -= 1;
+    mem.mem[cpu.registers().s as usize] = (return_pc >> 8) as u8; // PC hi
+    cpu.registers_mut().s -= 1;
+    mem.mem[cpu.registers().s as usize] = cc_byte; // CC
 
     cpu.step(&mut mem); // RTI
-    assert_eq!(cpu.reg.pc, 0x1234);
-    assert!(!cpu.reg.cc.entire());
+    assert_eq!(cpu.registers().pc, 0x1234);
+    assert!(!cpu.registers().cc.entire());
 }
 
 // ---- Page 1 long branch ----
@@ -729,7 +729,7 @@ fn lbeq_taken() {
     );
     cpu.step(&mut mem); // LDA → Z set
     cpu.step(&mut mem); // LBEQ
-    assert_eq!(cpu.reg.pc, 0x0406 + 0x0100);
+    assert_eq!(cpu.registers().pc, 0x0406 + 0x0100);
 }
 
 #[test]
@@ -743,7 +743,7 @@ fn lbeq_not_taken() {
     );
     cpu.step(&mut mem);
     cpu.step(&mut mem);
-    assert_eq!(cpu.reg.pc, 0x0406); // fell through
+    assert_eq!(cpu.registers().pc, 0x0406); // fell through
 }
 
 // ---- Page 1 LDY ----
@@ -755,7 +755,7 @@ fn ldy_immediate() {
         0x0400,
     );
     cpu.step(&mut mem);
-    assert_eq!(cpu.reg.y, 0xBEEF);
+    assert_eq!(cpu.registers().y, 0xBEEF);
 }
 
 // ---- Page 1 LDS ----
@@ -767,7 +767,7 @@ fn lds_immediate() {
         0x0400,
     );
     cpu.step(&mut mem);
-    assert_eq!(cpu.reg.s, 0x8000);
+    assert_eq!(cpu.registers().s, 0x8000);
 }
 
 // ---- Page 1 Immediate A/D/X ----
@@ -783,7 +783,7 @@ fn cmpa_immediate() {
     );
     cpu.step(&mut mem);
     cpu.step(&mut mem);
-    assert!(cpu.reg.cc.zero());
+    assert!(cpu.registers().cc.zero());
 }
 
 // ---- Page 1 Extended A/D/X ----
@@ -800,7 +800,7 @@ fn cmpa_extended() {
     mem.mem[0x0410] = 0x42;
     cpu.step(&mut mem);
     cpu.step(&mut mem);
-    assert!(cpu.reg.cc.zero());
+    assert!(cpu.registers().cc.zero());
 }
 
 // ---- Page 2 CMPU ----
@@ -816,7 +816,7 @@ fn cmpu_immediate() {
     );
     cpu.step(&mut mem);
     cpu.step(&mut mem);
-    assert!(cpu.reg.cc.zero());
+    assert!(cpu.registers().cc.zero());
 }
 
 // ---- Counting loop integration test ----
@@ -839,7 +839,7 @@ fn counting_loop() {
     ];
 
     let (mut cpu, mut mem) = setup(program, 0x0400);
-    cpu.reg.s = 0x8000;
+    cpu.registers_mut().s = 0x8000;
     // Set SWI vector to a known address so execution doesn't fly off
     mem.mem[0xFFFA] = 0xFF;
     mem.mem[0xFFFB] = 0x00;
@@ -847,12 +847,12 @@ fn counting_loop() {
     // Run until SWI is hit (PC jumps to $FF00)
     for _ in 0..200 {
         cpu.step(&mut mem);
-        if cpu.reg.pc == 0xFF00 {
+        if cpu.registers().pc == 0xFF00 {
             break;
         }
     }
-    assert_eq!(cpu.reg.b(), 10);
-    assert_eq!(cpu.reg.pc, 0xFF00); // SWI vector
+    assert_eq!(cpu.registers().b(), 10);
+    assert_eq!(cpu.registers().pc, 0xFF00); // SWI vector
 }
 
 // ---- Direct page tests ----
@@ -871,9 +871,9 @@ fn direct_page_register() {
     mem.mem[0x1020] = 0x77;
     cpu.step(&mut mem); // LDA #$10
     cpu.step(&mut mem); // TFR A,DP
-    assert_eq!(cpu.reg.dp, 0x10);
+    assert_eq!(cpu.registers().dp, 0x10);
     cpu.step(&mut mem); // LDA <$20
-    assert_eq!(cpu.reg.a(), 0x77);
+    assert_eq!(cpu.registers().a(), 0x77);
 }
 
 // ---- Extended addressing ----
@@ -886,7 +886,7 @@ fn lda_extended() {
     );
     mem.mem[0x1234] = 0xEE;
     cpu.step(&mut mem);
-    assert_eq!(cpu.reg.a(), 0xEE);
+    assert_eq!(cpu.registers().a(), 0xEE);
 }
 
 // ---- CMPX ----
@@ -902,8 +902,8 @@ fn cmpx_immediate() {
     );
     cpu.step(&mut mem);
     cpu.step(&mut mem);
-    assert!(cpu.reg.cc.zero());
-    assert_eq!(cpu.reg.x, 0x1000); // unchanged
+    assert!(cpu.registers().cc.zero());
+    assert_eq!(cpu.registers().x, 0x1000); // unchanged
 }
 
 // ---- Memory read-modify-write (INC direct) ----
@@ -928,17 +928,17 @@ fn inc_direct() {
 #[test]
 fn xhcf_0x14_halts_cpu() {
     let (mut cpu, mut mem) = setup(&[0x14], 0x0400);
-    assert!(!cpu.halted);
+    assert!(!cpu.halted());
     cpu.step(&mut mem);
-    assert!(cpu.halted);
+    assert!(cpu.halted());
 }
 
 #[test]
 fn xhcf_0xcd_halts_cpu() {
     let (mut cpu, mut mem) = setup(&[0xCD], 0x0400);
-    assert!(!cpu.halted);
+    assert!(!cpu.halted());
     cpu.step(&mut mem);
-    assert!(cpu.halted);
+    assert!(cpu.halted());
 }
 
 #[test]
@@ -947,14 +947,14 @@ fn illegal_opcode_sets_flag_but_execution_continues() {
 
     let first_cycles = cpu.step(&mut mem);
     assert_eq!(first_cycles, 1);
-    assert!(cpu.illegal);
-    assert!(!cpu.halted);
-    assert_eq!(cpu.reg.pc, 0x0401);
+    assert!(cpu.illegal());
+    assert!(!cpu.halted());
+    assert_eq!(cpu.registers().pc, 0x0401);
 
     let second_cycles = cpu.step(&mut mem);
     assert_eq!(second_cycles, 2);
-    assert_eq!(cpu.reg.pc, 0x0402);
-    assert!(!cpu.halted);
+    assert_eq!(cpu.registers().pc, 0x0402);
+    assert!(!cpu.halted());
 }
 
 // ---- X18: undocumented flag rotate (0x18) ----
@@ -981,10 +981,10 @@ fn x18_flag_transform() {
         0x0400,
     );
     cpu.step(&mut mem); // ORCC
-    assert_eq!(cpu.reg.cc.to_byte(), 0xFF);
+    assert_eq!(cpu.registers().cc.to_byte(), 0xFF);
     cpu.step(&mut mem); // X18
-    assert_eq!(cpu.reg.cc.to_byte(), 0xFE); // C cleared, all others set
-    assert_eq!(cpu.reg.pc, 0x0403); // PC advanced past 0x18 only
+    assert_eq!(cpu.registers().cc.to_byte(), 0xFE); // C cleared, all others set
+    assert_eq!(cpu.registers().pc, 0x0403); // PC advanced past 0x18 only
 }
 
 // ---- XANDCC immediate (0x38) ----
@@ -1000,9 +1000,9 @@ fn xandcc_undoc_0x38() {
         0x0400,
     );
     cpu.step(&mut mem);
-    assert_eq!(cpu.reg.cc.to_byte(), 0xFF);
+    assert_eq!(cpu.registers().cc.to_byte(), 0xFF);
     cpu.step(&mut mem);
-    assert_eq!(cpu.reg.cc.to_byte(), 0x00);
+    assert_eq!(cpu.registers().cc.to_byte(), 0x00);
 }
 
 // ---- RESET undocumented (0x3E) ----
@@ -1018,18 +1018,18 @@ fn reset_undoc_0x3e_jumps_and_preserves_fi() {
         ],
         0x0400,
     );
-    cpu.reg.s = 0x8000;
+    cpu.registers_mut().s = 0x8000;
     mem.mem[0xFFFE] = 0x10;
     mem.mem[0xFFFF] = 0x00; // RESET vector → 0x1000
     cpu.step(&mut mem); // ANDCC
-    assert!(!cpu.reg.cc.firq_inhibit());
-    assert!(!cpu.reg.cc.irq_inhibit());
+    assert!(!cpu.registers().cc.firq_inhibit());
+    assert!(!cpu.registers().cc.irq_inhibit());
     cpu.step(&mut mem); // RESET undoc
-    assert_eq!(cpu.reg.pc, 0x1000);
-    assert!(!cpu.reg.cc.firq_inhibit()); // F not set by instruction
-    assert!(!cpu.reg.cc.irq_inhibit()); // I not set by instruction
-    assert_eq!(cpu.reg.s, 0x8000 - 12); // full 12-byte frame pushed
-    let saved_cc = mem.mem[cpu.reg.s as usize];
+    assert_eq!(cpu.registers().pc, 0x1000);
+    assert!(!cpu.registers().cc.firq_inhibit()); // F not set by instruction
+    assert!(!cpu.registers().cc.irq_inhibit()); // I not set by instruction
+    assert_eq!(cpu.registers().s, 0x8000 - 12); // full 12-byte frame pushed
+    let saved_cc = mem.mem[cpu.registers().s as usize];
     assert_eq!(saved_cc & 0x80, 0x00); // E was NOT set before push
 }
 
@@ -1048,11 +1048,11 @@ fn xclra_undoc_zeroes_a_leaves_carry() {
     cpu.step(&mut mem); // LDA #$FF
     cpu.step(&mut mem); // ORCC — set C
     cpu.step(&mut mem); // XCLRA
-    assert_eq!(cpu.reg.a(), 0x00);
-    assert!(cpu.reg.cc.zero());
-    assert!(!cpu.reg.cc.negative());
-    assert!(!cpu.reg.cc.overflow());
-    assert!(cpu.reg.cc.carry()); // C must remain set
+    assert_eq!(cpu.registers().a(), 0x00);
+    assert!(cpu.registers().cc.zero());
+    assert!(!cpu.registers().cc.negative());
+    assert!(!cpu.registers().cc.overflow());
+    assert!(cpu.registers().cc.carry()); // C must remain set
 }
 
 // ---- XCLRB: CLR B but C unchanged (0x5E) ----
@@ -1070,11 +1070,11 @@ fn xclrb_undoc_zeroes_b_leaves_carry() {
     cpu.step(&mut mem); // LDB
     cpu.step(&mut mem); // ORCC
     cpu.step(&mut mem); // XCLRB
-    assert_eq!(cpu.reg.b(), 0x00);
-    assert!(cpu.reg.cc.zero());
-    assert!(!cpu.reg.cc.negative());
-    assert!(!cpu.reg.cc.overflow());
-    assert!(cpu.reg.cc.carry()); // C unchanged
+    assert_eq!(cpu.registers().b(), 0x00);
+    assert!(cpu.registers().cc.zero());
+    assert!(!cpu.registers().cc.negative());
+    assert!(!cpu.registers().cc.overflow());
+    assert!(cpu.registers().cc.carry()); // C unchanged
 }
 
 // ---- TFR / EXG mixed-size undocumented behaviour ----
@@ -1092,8 +1092,8 @@ fn tfr_mixed_size_gives_0xff() {
     );
     cpu.step(&mut mem); // LDB
     cpu.step(&mut mem); // TFR B,X
-    assert_eq!(cpu.reg.x, 0xFFFF);
-    assert_eq!(cpu.reg.b(), 0x42); // source unchanged
+    assert_eq!(cpu.registers().x, 0xFFFF);
+    assert_eq!(cpu.registers().b(), 0x42); // source unchanged
 }
 
 #[test]
@@ -1109,8 +1109,8 @@ fn tfr_mixed_size_16_to_8_gives_ff() {
     );
     cpu.step(&mut mem); // LDX
     cpu.step(&mut mem); // TFR X,A
-    assert_eq!(cpu.reg.a(), 0xFF);
-    assert_eq!(cpu.reg.x, 0x1234); // source unchanged
+    assert_eq!(cpu.registers().a(), 0xFF);
+    assert_eq!(cpu.registers().x, 0x1234); // source unchanged
 }
 
 #[test]
@@ -1128,8 +1128,8 @@ fn exg_mixed_size_both_get_ff() {
     cpu.step(&mut mem); // LDA
     cpu.step(&mut mem); // LDX
     cpu.step(&mut mem); // EXG A,X
-    assert_eq!(cpu.reg.a(), 0xFF);
-    assert_eq!(cpu.reg.x, 0xFFFF);
+    assert_eq!(cpu.registers().a(), 0xFF);
+    assert_eq!(cpu.registers().x, 0xFFFF);
 }
 
 // ---- Undocumented SWI2 (0x10 0x3E): does not set E before pushing ----
@@ -1143,14 +1143,14 @@ fn swi2_undoc_page1_no_e_flag_in_frame() {
         ],
         0x0400,
     );
-    cpu.reg.s = 0x8000;
+    cpu.registers_mut().s = 0x8000;
     mem.mem[0xFFF4] = 0x20;
     mem.mem[0xFFF5] = 0x00; // SWI2 vector → 0x2000
     cpu.step(&mut mem); // ANDCC — E clear
     cpu.step(&mut mem); // SWI2 undoc
-    assert_eq!(cpu.reg.pc, 0x2000);
-    assert_eq!(cpu.reg.s, 0x8000 - 12);
-    let saved_cc = mem.mem[cpu.reg.s as usize];
+    assert_eq!(cpu.registers().pc, 0x2000);
+    assert_eq!(cpu.registers().s, 0x8000 - 12);
+    let saved_cc = mem.mem[cpu.registers().s as usize];
     assert_eq!(saved_cc & 0x80, 0x00); // E was NOT set before push
 }
 
@@ -1165,17 +1165,17 @@ fn xfirq_undoc_jumps_via_firq_vector_no_flag_changes() {
         ],
         0x0400,
     );
-    cpu.reg.s = 0x8000;
+    cpu.registers_mut().s = 0x8000;
     mem.mem[0xFFF6] = 0x30;
     mem.mem[0xFFF7] = 0x00; // FIRQ vector → 0x3000
     cpu.step(&mut mem); // ANDCC
-    assert!(!cpu.reg.cc.firq_inhibit());
-    assert!(!cpu.reg.cc.irq_inhibit());
+    assert!(!cpu.registers().cc.firq_inhibit());
+    assert!(!cpu.registers().cc.irq_inhibit());
     cpu.step(&mut mem); // XFIRQ
-    assert_eq!(cpu.reg.pc, 0x3000);
-    assert!(!cpu.reg.cc.firq_inhibit()); // F still clear
-    assert!(!cpu.reg.cc.irq_inhibit()); // I still clear
-    assert_eq!(cpu.reg.s, 0x8000 - 12); // full state pushed
+    assert_eq!(cpu.registers().pc, 0x3000);
+    assert!(!cpu.registers().cc.firq_inhibit()); // F still clear
+    assert!(!cpu.registers().cc.irq_inhibit()); // I still clear
+    assert_eq!(cpu.registers().s, 0x8000 - 12); // full state pushed
 }
 
 // ---- XNC: NEG if C=0, COM if C=1 ----
@@ -1194,8 +1194,8 @@ fn xnc_a_carry_clear_acts_as_nega() {
     cpu.step(&mut mem);
     cpu.step(&mut mem);
     cpu.step(&mut mem);
-    assert_eq!(cpu.reg.a(), 0xFB); // neg(0x05) = 0xFB (two's complement)
-    assert!(cpu.reg.cc.carry()); // neg of non-zero sets C
+    assert_eq!(cpu.registers().a(), 0xFB); // neg(0x05) = 0xFB (two's complement)
+    assert!(cpu.registers().cc.carry()); // neg of non-zero sets C
 }
 
 #[test]
@@ -1212,8 +1212,8 @@ fn xnc_a_carry_set_acts_as_coma() {
     cpu.step(&mut mem);
     cpu.step(&mut mem);
     cpu.step(&mut mem);
-    assert_eq!(cpu.reg.a(), 0x55); // ~$AA = $55
-    assert!(cpu.reg.cc.carry()); // COM always sets C
+    assert_eq!(cpu.registers().a(), 0x55); // ~$AA = $55
+    assert!(cpu.registers().cc.carry()); // COM always sets C
 }
 
 #[test]
@@ -1230,7 +1230,7 @@ fn xnc_b_carry_clear_acts_as_negb() {
     cpu.step(&mut mem);
     cpu.step(&mut mem);
     cpu.step(&mut mem);
-    assert_eq!(cpu.reg.b(), 0xFF);
+    assert_eq!(cpu.registers().b(), 0xFF);
 }
 
 #[test]
@@ -1265,8 +1265,8 @@ fn xdec_a_nonzero_sets_carry() {
     cpu.step(&mut mem);
     cpu.step(&mut mem);
     cpu.step(&mut mem);
-    assert_eq!(cpu.reg.a(), 0x02);
-    assert!(cpu.reg.cc.carry()); // 3 != 0 → C set
+    assert_eq!(cpu.registers().a(), 0x02);
+    assert!(cpu.registers().cc.carry()); // 3 != 0 → C set
 }
 
 #[test]
@@ -1283,9 +1283,9 @@ fn xdec_a_zero_clears_carry() {
     cpu.step(&mut mem);
     cpu.step(&mut mem);
     cpu.step(&mut mem);
-    assert_eq!(cpu.reg.a(), 0xFF);
-    assert!(!cpu.reg.cc.carry()); // 0 == 0 → C cleared
-    assert!(cpu.reg.cc.negative()); // 0xFF is negative
+    assert_eq!(cpu.registers().a(), 0xFF);
+    assert!(!cpu.registers().cc.carry()); // 0 == 0 → C cleared
+    assert!(cpu.registers().cc.negative()); // 0xFF is negative
 }
 
 #[test]
@@ -1302,9 +1302,9 @@ fn xdec_b_nonzero_sets_carry() {
     cpu.step(&mut mem);
     cpu.step(&mut mem);
     cpu.step(&mut mem);
-    assert_eq!(cpu.reg.b(), 0x7F);
-    assert!(cpu.reg.cc.overflow()); // 0x80 → V set (same as DEC)
-    assert!(cpu.reg.cc.carry()); // 0x80 != 0 → C set
+    assert_eq!(cpu.registers().b(), 0x7F);
+    assert!(cpu.registers().cc.overflow()); // 0x80 → V set (same as DEC)
+    assert!(cpu.registers().cc.carry()); // 0x80 != 0 → C set
 }
 
 #[test]
@@ -1321,7 +1321,7 @@ fn xdec_direct_zero_clears_carry() {
     cpu.step(&mut mem);
     cpu.step(&mut mem);
     assert_eq!(mem.mem[0x0050], 0xFF);
-    assert!(!cpu.reg.cc.carry()); // 0 == 0 → C cleared
+    assert!(!cpu.registers().cc.carry()); // 0 == 0 → C cleared
 }
 
 // ---- XADDD (page 1, 0x10 0xC3 / 0xD3): sets flags like ADDD, result discarded ----
@@ -1338,9 +1338,9 @@ fn xaddd_imm_sets_flags_discards_result() {
     );
     cpu.step(&mut mem); // LDD
     cpu.step(&mut mem); // XADDD imm
-    assert_eq!(cpu.reg.d, 0xFFFF); // D unchanged
-    assert!(cpu.reg.cc.carry()); // overflow into carry
-    assert!(cpu.reg.cc.zero()); // result would be 0
+    assert_eq!(cpu.registers().d, 0xFFFF); // D unchanged
+    assert!(cpu.registers().cc.carry()); // overflow into carry
+    assert!(cpu.registers().cc.zero()); // result would be 0
 }
 
 #[test]
@@ -1357,10 +1357,10 @@ fn xaddd_direct_sets_flags_discards_result() {
     mem.mem[0x0051] = 0x34;
     cpu.step(&mut mem); // LDD
     cpu.step(&mut mem); // XADDD direct
-    assert_eq!(cpu.reg.d, 0x1000); // D unchanged
-    assert!(!cpu.reg.cc.carry());
-    assert!(!cpu.reg.cc.zero());
-    assert!(!cpu.reg.cc.negative()); // 0x1234 is positive
+    assert_eq!(cpu.registers().d, 0x1000); // D unchanged
+    assert!(!cpu.registers().cc.carry());
+    assert!(!cpu.registers().cc.zero());
+    assert!(!cpu.registers().cc.negative()); // 0x1234 is positive
 }
 
 // ---- XADDU (page 2, 0x11 0xC3 / 0xD3): adds (U | 0xFF00) with operand ----
@@ -1375,12 +1375,12 @@ fn xaddu_imm_sets_flags_discards_result() {
         ],
         0x0400,
     );
-    cpu.reg.s = 0x8100; // arm NMI safely
+    cpu.registers_mut().s = 0x8100; // arm NMI safely
     cpu.step(&mut mem); // LDU
     cpu.step(&mut mem); // XADDU imm
-    assert_eq!(cpu.reg.u, 0x0000); // U unchanged
-    assert!(cpu.reg.cc.carry()); // 0xFF00 + 0x0100 overflows
-    assert!(cpu.reg.cc.zero()); // result is 0x0000
+    assert_eq!(cpu.registers().u, 0x0000); // U unchanged
+    assert!(cpu.registers().cc.carry()); // 0xFF00 + 0x0100 overflows
+    assert!(cpu.registers().cc.zero()); // result is 0x0000
 }
 
 #[test]
@@ -1393,12 +1393,12 @@ fn xaddu_direct_sets_flags_discards_result() {
         ],
         0x0400,
     );
-    cpu.reg.s = 0x8100;
+    cpu.registers_mut().s = 0x8100;
     mem.mem[0x0050] = 0x00;
     mem.mem[0x0051] = 0x01;
     cpu.step(&mut mem); // LDU
     cpu.step(&mut mem); // XADDU direct
-    assert_eq!(cpu.reg.u, 0x00FF); // U unchanged
-    assert!(cpu.reg.cc.carry());
-    assert!(cpu.reg.cc.zero());
+    assert_eq!(cpu.registers().u, 0x00FF); // U unchanged
+    assert!(cpu.registers().cc.carry());
+    assert!(cpu.registers().cc.zero());
 }
