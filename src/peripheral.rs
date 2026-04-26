@@ -15,7 +15,7 @@
 use std::fmt;
 use std::ops::{BitAnd, BitAndAssign, BitOr, BitOrAssign, BitXor, BitXorAssign, Not};
 
-/// Interrupt and control signals returned by [`Bus::tick`].
+/// Interrupt and control signals returned by [`Clocked::tick`].
 ///
 /// Each flag corresponds to a physical input pin on the 6809 CPU.
 /// Signals can be combined with `|` and tested with [`contains`](Self::contains)
@@ -124,12 +124,12 @@ impl fmt::Debug for BusSignals {
 
 ///
 /// Implement this trait for any peripheral that needs to track CPU cycles and
-/// signal interrupts. The host loop calls [`tick`](Bus::tick) after each CPU
+/// signal interrupts. The host loop calls [`tick`](Clocked::tick) after each CPU
 /// step (or batch of steps), then feeds the returned [`BusSignals`] into the
 /// CPU via [`Cpu::set_irq`](crate::Cpu::set_irq) etc.
 ///
 /// The trait is intentionally thin so that implementations can be layered.
-/// A debug or tracing bus can wrap an inner `Clocked` implementation, forwarding
+/// A debug or tracing system can wrap an inner `Clocked` implementation, forwarding
 /// `tick()` calls while intercepting or logging signals — without requiring
 /// changes to the wrapped implementation or the host loop.
 ///
@@ -142,7 +142,7 @@ impl fmt::Debug for BusSignals {
 /// ```
 ///
 /// The default implementation is a no-op returning all signals inactive,
-/// suitable for simple test buses with no peripherals.
+/// suitable for simple test systems with no peripherals.
 pub trait Clocked {
     fn tick(&mut self, _cycles: u64) -> BusSignals {
         BusSignals::default()
