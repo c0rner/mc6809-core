@@ -33,8 +33,8 @@ use crate::memory::Memory;
 /// Returns `0` for an empty slice or an unrecognised sub-opcode.
 pub fn instruction_cycles(bytes: &[u8]) -> u8 {
     match bytes.first().copied() {
-        Some(0x10) => bytes.get(1).map_or(0, |&sub| page1::cycles(sub)),
-        Some(0x11) => bytes.get(1).map_or(0, |&sub| page2::cycles(sub)),
+        Some(0x10) => bytes.get(1).map_or(1, |&sub| page1::cycles(sub)),
+        Some(0x11) => bytes.get(1).map_or(1, |&sub| page2::cycles(sub)),
         Some(op) => page0::cycles(op),
         None => 0,
     }

@@ -25,7 +25,7 @@ use crate::memory::Memory;
 /// Base cycle counts for Page 1 opcodes. Only valid entries are non-zero.
 #[rustfmt::skip]
 const PAGE1_CYCLES: [u8; 256] = {
-    let mut t = [0u8; 256];
+    let mut t = [2u8; 256];
     // Long branches: 5 cycles (not taken), 6 cycles (taken).
     // We charge 5 base and add 1 if taken.
     t[0x20] = 5; t[0x21] = 5; t[0x22] = 5; t[0x23] = 5;

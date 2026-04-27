@@ -41,6 +41,12 @@ fn page0_nega_is_2_cycles() {
     assert_eq!(instruction_cycles(&[0x40]), 2);
 }
 
+/// An unrecognised page 0 opcode (0x87) returns 1.
+#[test]
+fn page0_illegal_opcode_returns_one() {
+    assert_eq!(instruction_cycles(&[0x87]), 1);
+}
+
 // ---------------------------------------------------------------------------
 // Page 1 opcodes (0x10 prefix)
 // ---------------------------------------------------------------------------
@@ -57,16 +63,16 @@ fn page1_swi2_is_20_cycles() {
     assert_eq!(instruction_cycles(&[0x10, 0x3F]), 20);
 }
 
-/// A page 1 prefix with no sub-opcode byte returns 0.
+/// A page 1 prefix with no sub-opcode byte returns 1.
 #[test]
-fn page1_prefix_only_returns_zero() {
-    assert_eq!(instruction_cycles(&[0x10]), 0);
+fn page1_prefix_only_returns_one() {
+    assert_eq!(instruction_cycles(&[0x10]), 1);
 }
 
-/// An unrecognised page 1 sub-opcode (0x10 0x00) returns 0.
+/// An unrecognised page 1 sub-opcode (0x10 0x00) returns 2.
 #[test]
-fn page1_illegal_sub_opcode_returns_zero() {
-    assert_eq!(instruction_cycles(&[0x10, 0x00]), 0);
+fn page1_illegal_sub_opcode_returns_two() {
+    assert_eq!(instruction_cycles(&[0x10, 0x00]), 2);
 }
 
 // ---------------------------------------------------------------------------
@@ -85,14 +91,14 @@ fn page2_swi3_is_20_cycles() {
     assert_eq!(instruction_cycles(&[0x11, 0x3F]), 20);
 }
 
-/// A page 2 prefix with no sub-opcode byte returns 0.
+/// A page 2 prefix with no sub-opcode byte returns 1.
 #[test]
-fn page2_prefix_only_returns_zero() {
-    assert_eq!(instruction_cycles(&[0x11]), 0);
+fn page2_prefix_only_returns_one() {
+    assert_eq!(instruction_cycles(&[0x11]), 1);
 }
 
-/// An unrecognised page 2 sub-opcode (0x11 0x00) returns 0.
+/// An unrecognised page 2 sub-opcode (0x11 0x00) returns 2.
 #[test]
-fn page2_illegal_sub_opcode_returns_zero() {
-    assert_eq!(instruction_cycles(&[0x11, 0x00]), 0);
+fn page2_illegal_sub_opcode_returns_two() {
+    assert_eq!(instruction_cycles(&[0x11, 0x00]), 2);
 }
