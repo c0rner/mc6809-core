@@ -18,7 +18,7 @@
 //!
 //! Provides a [`Cpu`] that executes 6809 instructions against any memory system
 //! implementing the [`Memory`] trait. Peripheral timing and interrupt signals are
-//! handled separately via the [`Bus`] trait, which is called by the host loop
+//! handled separately via the [`Clocked`] trait, which is called by the host loop
 //! independently of the CPU.
 //!
 //! ## Example
@@ -56,7 +56,7 @@ pub mod registers;
 
 pub use cpu::{Cpu, RegistersMut, instruction_cycles};
 pub use memory::Memory;
-pub use peripheral::{Clocked, BusSignals};
+pub use peripheral::{BusSignals, Clocked};
 pub use registers::{ConditionCodes, Registers};
 
 #[cfg(test)]

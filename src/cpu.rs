@@ -102,10 +102,11 @@ impl Cpu {
 
     /// Mutable access to the programmer-visible registers via an RAII guard.
     ///
-    /// The guard implements [`Deref`] and [`DerefMut`] for [`Registers`], giving
-    /// transparent read/write access to all fields. On drop it checks whether the
-    /// hardware stack pointer (S) changed and, if so, arms the NMI — matching the
-    /// real 6809 behaviour where the first write to S enables edge-triggered NMI.
+    /// The guard implements [`std::ops::Deref`] and [`std::ops::DerefMut`] for
+    /// [`Registers`], giving transparent read/write access to all fields. On drop
+    /// it checks whether the hardware stack pointer (S) changed and, if so, arms
+    /// the NMI — matching the real 6809 behaviour where the first write to S
+    /// enables edge-triggered NMI.
     ///
     /// Note: the guard detects S changes by comparing the value on entry with the
     /// value on drop. Writing S to the value it already holds will not arm NMI, but
