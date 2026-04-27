@@ -30,7 +30,7 @@ use crate::memory::Memory;
 /// Repeated page-prefix chaining is intentionally unsupported: only the first
 /// leading `0x10` or `0x11` is recognised as a page selector.
 ///
-/// Returns `0` for an empty slice or an unrecognised sub-opcode.
+/// Returns `0` for an empty slice or '1' for an unrecognised sub-opcode.
 pub fn instruction_cycles(bytes: &[u8]) -> u8 {
     match bytes.first().copied() {
         Some(0x10) => bytes.get(1).map_or(1, |&sub| page1::cycles(sub)),

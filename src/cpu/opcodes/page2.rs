@@ -22,7 +22,7 @@ use crate::alu;
 use crate::cpu::Cpu;
 use crate::memory::Memory;
 
-/// Base cycle counts for Page 2 opcodes.
+/// Base cycle counts for Page 2 opcodes. Invalid entries return a cycle count of 2.
 #[rustfmt::skip]
 const PAGE2_CYCLES: [u8; 256] = {
     let mut t = [2u8; 256];
