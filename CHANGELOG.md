@@ -14,6 +14,8 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 ### Changed
 - Refactored public API and internal structure: removed the old `Bus` trait and migrated peripheral responsibilities to the new `peripheral` module; `Cpu::reg` is now private.
 - CPU distinguishes illegal opcodes from explicit halts; added `Cpu::illegal()` for host detection and `Cpu::halted()` for explicit halts. Illegal opcodes do not halt execution by default.
+- Instruction cycle count updated for all illegal opcodes
+- Updated stack operations (push_word_s, pull_word_s, push_word_u, pull_word_u, fetch_word) to use direct word access instead of two byte operations
 
 ## [0.2.0] - 2026-04-22
 
