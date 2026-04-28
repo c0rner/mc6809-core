@@ -16,6 +16,8 @@
 ///
 /// Implement this trait to provide the CPU with access to memory and I/O.
 /// The 6809 has a 16-bit address bus (64KB address space) and an 8-bit data bus.
+/// Re-implementations of word read/write methods must use big-endian byte order
+/// (high byte at `addr`, low byte at `addr + 1`).
 pub trait Memory {
     /// Read a byte from the given address.
     fn read(&mut self, addr: u16) -> u8;

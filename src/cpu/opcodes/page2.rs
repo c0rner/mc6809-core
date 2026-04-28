@@ -22,10 +22,10 @@ use crate::alu;
 use crate::cpu::Cpu;
 use crate::memory::Memory;
 
-/// Base cycle counts for Page 2 opcodes.
+/// Base cycle counts for Page 2 opcodes. Invalid entries return a cycle count of 2.
 #[rustfmt::skip]
 const PAGE2_CYCLES: [u8; 256] = {
-    let mut t = [0u8; 256];
+    let mut t = [2u8; 256];
     t[0x3E] = 20; // XFIRQ (undocumented)
     t[0x3F] = 20; // SWI3
     t[0x83] = 5;  // CMPU imm

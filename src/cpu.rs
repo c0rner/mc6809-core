@@ -102,10 +102,11 @@ impl Cpu {
 
     /// Mutable access to the programmer-visible registers via an RAII guard.
     ///
-    /// The guard implements [`Deref`] and [`DerefMut`] for [`Registers`], giving
-    /// transparent read/write access to all fields. On drop it checks whether the
-    /// hardware stack pointer (S) changed and, if so, arms the NMI — matching the
-    /// real 6809 behaviour where the first write to S enables edge-triggered NMI.
+    /// The guard implements [`std::ops::Deref`] and [`std::ops::DerefMut`] for
+    /// [`Registers`], giving transparent read/write access to all fields. On drop
+    /// it checks whether the hardware stack pointer (S) changed and, if so, arms
+    /// the NMI — matching the real 6809 behaviour where the first write to S
+    /// enables edge-triggered NMI.
     ///
     /// Note: the guard detects S changes by comparing the value on entry with the
     /// value on drop. Writing S to the value it already holds will not arm NMI, but
@@ -283,8 +284,8 @@ impl Cpu {
 
     /// Push a 16-bit word onto the hardware stack (S), low byte first.
     pub(super) fn push_word_s(&mut self, mem: &mut impl Memory, val: u16) {
-        self.push_byte_s(mem, val as u8); // low byte pushed first (ends at higher address)
-        self.push_byte_s(mem, (val >> 8) as u8);
+        self.reg.s = self.reg.s.wrapping_sub(2);
+        mem.write_word(self.reg.s, val);
     }
 
     /// Pull a byte from the hardware stack (S).
@@ -296,9 +297,9 @@ impl Cpu {
 
     /// Pull a 16-bit word from the hardware stack (S).
     pub(super) fn pull_word_s(&mut self, mem: &mut impl Memory) -> u16 {
-        let hi = self.pull_byte_s(mem) as u16;
-        let lo = self.pull_byte_s(mem) as u16;
-        (hi << 8) | lo
+        let val = mem.read_word(self.reg.s);
+        self.reg.s = self.reg.s.wrapping_add(2);
+        val
     }
 
     /// Push a byte onto the user stack (U).
@@ -309,8 +310,8 @@ impl Cpu {
 
     /// Push a 16-bit word onto the user stack (U).
     pub(super) fn push_word_u(&mut self, mem: &mut impl Memory, val: u16) {
-        self.push_byte_u(mem, val as u8);
-        self.push_byte_u(mem, (val >> 8) as u8);
+        self.reg.u = self.reg.u.wrapping_sub(2);
+        mem.write_word(self.reg.u, val);
     }
 
     /// Pull a byte from the user stack (U).
@@ -322,9 +323,9 @@ impl Cpu {
 
     /// Pull a 16-bit word from the user stack (U).
     pub(super) fn pull_word_u(&mut self, mem: &mut impl Memory) -> u16 {
-        let hi = self.pull_byte_u(mem) as u16;
-        let lo = self.pull_byte_u(mem) as u16;
-        (hi << 8) | lo
+        let val = mem.read_word(self.reg.u);
+        self.reg.u = self.reg.u.wrapping_add(2);
+        val
     }
 
     /// Push the entire register state onto S (used by NMI, IRQ, SWI).
@@ -351,9 +352,9 @@ impl Cpu {
 
     /// Fetch a big-endian 16-bit word from [PC] and advance PC by 2.
     pub(super) fn fetch_word(&mut self, mem: &mut impl Memory) -> u16 {
-        let hi = self.fetch_byte(mem) as u16;
-        let lo = self.fetch_byte(mem) as u16;
-        (hi << 8) | lo
+        let val = mem.read_word(self.reg.pc);
+        self.reg.pc = self.reg.pc.wrapping_add(2);
+        val
     }
 
     // ---- addressing mode helpers ----
