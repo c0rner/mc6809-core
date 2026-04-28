@@ -34,7 +34,7 @@ use std::ops::{BitAnd, BitAndAssign, BitOr, BitOrAssign, BitXor, BitXorAssign, N
 pub struct BusSignals(u8);
 
 impl BusSignals {
-    /// NMI request (edge-triggered — set to trigger once).
+    /// NMI pin state (level). [`Cpu::apply_signals`] detects the rising edge.
     pub const NMI: Self = Self(0x01);
     /// FIRQ line state (active = asserted, level-triggered).
     pub const FIRQ: Self = Self(0x02);
@@ -47,6 +47,24 @@ impl BusSignals {
     #[inline]
     pub fn contains(self, other: Self) -> bool {
         self.0 & other.0 == other.0
+    }
+
+    /// Returns `true` if no signals are asserted.
+    #[inline]
+    pub fn is_empty(self) -> bool {
+        self.0 == 0
+    }
+
+    /// Assert one or more signals (set their bits).
+    #[inline]
+    pub fn insert(&mut self, signals: Self) {
+        *self |= signals;
+    }
+
+    /// De-assert one or more signals (clear their bits).
+    #[inline]
+    pub fn remove(&mut self, signals: Self) {
+        *self &= !signals;
     }
 }
 
@@ -126,7 +144,13 @@ impl fmt::Debug for BusSignals {
 /// Implement this trait for any peripheral that needs to track CPU cycles and
 /// signal interrupts. The host loop calls [`tick`](Clocked::tick) after each CPU
 /// step (or batch of steps), then feeds the returned [`BusSignals`] into the
-/// CPU via [`Cpu::set_irq`](crate::Cpu::set_irq) etc.
+/// CPU via [`Cpu::apply_signals`](crate::Cpu::apply_signals).
+///
+/// Each call to `tick` should return the **current pin state** — the full set of
+/// signals that are asserted right now, not just what changed. The host loop
+/// uses [`BusSignals`] equality to detect changes and only calls `apply_signals`
+/// when something actually transitions, keeping the hot path to a single
+/// comparison.
 ///
 /// The trait is intentionally thin so that implementations can be layered.
 /// A debug or tracing system can wrap an inner `Clocked` implementation, forwarding
@@ -140,6 +164,40 @@ impl fmt::Debug for BusSignals {
 ///     signals |= p.tick(cycles);
 /// }
 /// ```
+///
+/// ## Recommended host loop
+///
+/// ```ignore
+/// use mc6809_core::{BusSignals, Cpu, Memory};
+///
+/// let mut prev_signals = BusSignals::default();
+///
+/// loop {
+///     let cycles = cpu.step(&mut mem);
+///     let signals = peripheral.tick(cycles);
+///
+///     // RESET is handled before apply_signals so a held-RESET pin keeps the
+///     // CPU quiescent and is not confused with a regular interrupt transition.
+///     if signals.contains(BusSignals::RESET) {
+///         cpu.reset(&mut mem);
+///         prev_signals = BusSignals::default();
+///         continue;
+///     }
+///
+///     // Only call into the CPU when something actually changed on the bus.
+///     if signals != prev_signals {
+///         cpu.apply_signals(signals, prev_signals);
+///         prev_signals = signals;
+///     }
+///
+///     if cpu.halted() { break; }
+/// }
+/// ```
+///
+/// The `signals != prev_signals` guard means `apply_signals` is called at most
+/// once per transition (rising/falling edge), not every cycle. Signals that
+/// remain asserted (e.g. a peripheral holding IRQ) stay latched inside the CPU
+/// via `int_lines` without any per-cycle overhead.
 ///
 /// The default implementation is a no-op returning all signals inactive,
 /// suitable for simple test systems with no peripherals.

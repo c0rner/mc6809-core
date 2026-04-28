@@ -13,7 +13,9 @@
 //   limitations under the License.
 
 use crate::memory::Memory;
+use crate::peripheral::BusSignals;
 use crate::registers::Registers;
+
 
 mod opcodes;
 
@@ -49,13 +51,13 @@ pub struct Cpu {
     // ---- interrupt state ----
     /// NMI is armed (becomes true after first write to S).
     nmi_armed: bool,
-    /// NMI pending (edge-triggered).
-    nmi_pending: bool,
-    /// FIRQ line asserted (level-triggered).
-    firq_line: bool,
-    /// IRQ line asserted (level-triggered).
-    irq_line: bool,
-    /// CWAI: entire state already pushed, waiting for interrupt.
+    /// Pending interrupt lines: `BusSignals::NMI | BusSignals::FIRQ | BusSignals::IRQ`.
+    ///
+    /// `NMI` is an edge latch (set externally, cleared when serviced).
+    /// `FIRQ` / `IRQ` mirror the physical pin levels; only the peripheral
+    /// (via [`set_irq`](Self::set_irq) / [`set_firq`](Self::set_firq)) clears them.
+    int_lines: BusSignals,
+    /// CWAI: entire state already pushed, waiting for a serviceable interrupt.
     cwai: bool,
     /// SYNC: waiting for any interrupt edge.
     sync: bool,
@@ -70,9 +72,7 @@ impl Cpu {
             halted: false,
             illegal: false,
             nmi_armed: false,
-            nmi_pending: false,
-            firq_line: false,
-            irq_line: false,
+            int_lines: BusSignals::default(),
             cwai: false,
             sync: false,
         }
@@ -88,9 +88,7 @@ impl Cpu {
         self.halted = false;
         self.illegal = false;
         self.nmi_armed = false;
-        self.nmi_pending = false;
-        self.firq_line = false;
-        self.irq_line = false;
+        self.int_lines = BusSignals::default();
         self.cwai = false;
         self.sync = false;
     }
@@ -160,19 +158,85 @@ impl Cpu {
     }
 
     /// Assert or de-assert the IRQ line (level-triggered).
+    ///
+    /// The CPU samples this each step. Only the peripheral should de-assert it
+    /// (by calling `set_irq(false)`); the CPU never clears it internally.
     pub fn set_irq(&mut self, active: bool) {
-        self.irq_line = active;
+        if active {
+            self.int_lines.insert(BusSignals::IRQ);
+        } else {
+            self.int_lines.remove(BusSignals::IRQ);
+        }
     }
 
     /// Assert or de-assert the FIRQ line (level-triggered).
+    ///
+    /// The CPU samples this each step. Only the peripheral should de-assert it
+    /// (by calling `set_firq(false)`); the CPU never clears it internally.
     pub fn set_firq(&mut self, active: bool) {
-        self.firq_line = active;
+        if active {
+            self.int_lines.insert(BusSignals::FIRQ);
+        } else {
+            self.int_lines.remove(BusSignals::FIRQ);
+        }
     }
 
     /// Trigger an NMI (edge-triggered). Only effective if NMI is armed.
     pub fn trigger_nmi(&mut self) {
         if self.nmi_armed {
-            self.nmi_pending = true;
+            self.int_lines.insert(BusSignals::NMI);
+        }
+    }
+
+    /// Apply a snapshot of bus signals to the CPU, handling NMI edge detection.
+    ///
+    /// Call this from the host loop whenever [`BusSignals`] change. Passing the
+    /// previous snapshot allows the CPU to detect the NMI rising edge internally,
+    /// so the caller does not need to track edge transitions for NMI.
+    ///
+    /// IRQ and FIRQ are level-triggered: their state is mirrored directly into
+    /// the CPU. The CPU will hold the line until the peripheral de-asserts it
+    /// (i.e. returns a snapshot without `IRQ`/`FIRQ` set on a subsequent tick).
+    ///
+    /// RESET is not handled here; the host loop is responsible for calling
+    /// [`Cpu::reset`] when `signals` contains [`BusSignals::RESET`].
+    ///
+    /// # Host loop pattern
+    /// ```ignore
+    /// let mut prev_signals = BusSignals::default();
+    /// loop {
+    ///     let cycles = cpu.step(&mut mem);
+    ///     let signals = peripheral.tick(cycles);
+    ///
+    ///     if signals.contains(BusSignals::RESET) {
+    ///         cpu.reset(&mut mem);
+    ///         prev_signals = BusSignals::default();
+    ///         continue;
+    ///     }
+    ///
+    ///     if signals != prev_signals {
+    ///         cpu.apply_signals(signals, prev_signals);
+    ///         prev_signals = signals;
+    ///     }
+    ///
+    ///     if cpu.halted() { break; }
+    /// }
+    /// ```
+    pub fn apply_signals(&mut self, signals: BusSignals, prev: BusSignals) {
+        // NMI: edge-triggered — arm on rising edge only
+        if signals.contains(BusSignals::NMI) && !prev.contains(BusSignals::NMI) {
+            self.trigger_nmi();
+        }
+        // IRQ/FIRQ: level-triggered — mirror current pin state
+        if signals.contains(BusSignals::FIRQ) {
+            self.int_lines.insert(BusSignals::FIRQ);
+        } else {
+            self.int_lines.remove(BusSignals::FIRQ);
+        }
+        if signals.contains(BusSignals::IRQ) {
+            self.int_lines.insert(BusSignals::IRQ);
+        } else {
+            self.int_lines.remove(BusSignals::IRQ);
         }
     }
 
@@ -191,9 +255,21 @@ impl Cpu {
 
         // Handle SYNC state: wait for any interrupt edge
         if self.sync {
-            if self.nmi_pending || self.firq_line || self.irq_line {
+            if !self.int_lines.is_empty() {
                 self.sync = false;
             } else {
+                self.cycles += 1;
+                return 1;
+            }
+        }
+
+        // Handle CWAI state: entire state already pushed, waiting for a
+        // serviceable interrupt (NMI is always serviceable; FIRQ/IRQ respect masks).
+        if self.cwai {
+            let serviceable = self.int_lines.contains(BusSignals::NMI)
+                || (self.int_lines.contains(BusSignals::FIRQ) && !self.reg.cc.firq_inhibit())
+                || (self.int_lines.contains(BusSignals::IRQ) && !self.reg.cc.irq_inhibit());
+            if !serviceable {
                 self.cycles += 1;
                 return 1;
             }
@@ -228,9 +304,13 @@ impl Cpu {
     // ---- interrupt logic ----
 
     fn check_interrupts(&mut self, mem: &mut impl Memory) -> bool {
-        // NMI (edge-triggered, highest priority)
-        if self.nmi_pending {
-            self.nmi_pending = false;
+        if self.int_lines.is_empty() {
+            return false;
+        }
+
+        // NMI (edge-triggered, highest priority): clear the latch on service.
+        if self.int_lines.contains(BusSignals::NMI) {
+            self.int_lines.remove(BusSignals::NMI);
             if !self.cwai {
                 self.reg.cc.set_entire(true);
                 self.push_entire_state(mem);
@@ -243,8 +323,8 @@ impl Cpu {
             return true;
         }
 
-        // FIRQ (level-triggered)
-        if self.firq_line && !self.reg.cc.firq_inhibit() {
+        // FIRQ (level-triggered): do NOT clear — only the peripheral de-asserts.
+        if self.int_lines.contains(BusSignals::FIRQ) && !self.reg.cc.firq_inhibit() {
             if !self.cwai {
                 self.reg.cc.set_entire(false);
                 self.push_word_s(mem, self.reg.pc);
@@ -258,8 +338,8 @@ impl Cpu {
             return true;
         }
 
-        // IRQ (level-triggered)
-        if self.irq_line && !self.reg.cc.irq_inhibit() {
+        // IRQ (level-triggered): do NOT clear — only the peripheral de-asserts.
+        if self.int_lines.contains(BusSignals::IRQ) && !self.reg.cc.irq_inhibit() {
             if !self.cwai {
                 self.reg.cc.set_entire(true);
                 self.push_entire_state(mem);
