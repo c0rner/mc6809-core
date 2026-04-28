@@ -16,7 +16,6 @@ use crate::memory::Memory;
 use crate::peripheral::BusSignals;
 use crate::registers::Registers;
 
-
 mod opcodes;
 
 pub use opcodes::instruction_cycles;
@@ -55,7 +54,8 @@ pub struct Cpu {
     ///
     /// `NMI` is an edge latch (set externally, cleared when serviced).
     /// `FIRQ` / `IRQ` mirror the physical pin levels; only the peripheral
-    /// (via [`set_irq`](Self::set_irq) / [`set_firq`](Self::set_firq)) clears them.
+    /// (via for example ['apply_signals`](Self::apply_signals) or
+    /// [`set_irq`](Self::set_irq) / [`set_firq`](Self::set_firq)) clears them.
     int_lines: BusSignals,
     /// CWAI: entire state already pushed, waiting for a serviceable interrupt.
     cwai: bool,
