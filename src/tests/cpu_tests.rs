@@ -14,7 +14,7 @@
 
 //! Integration tests for the CPU — load short programs and verify behavior.
 
-use crate::{Cpu, Memory, registers::CC_E};
+use crate::{BusSignals, Cpu, Memory, registers::CC_E};
 
 /// Simple 64KB flat RAM mem for testing.
 struct TestMem {
@@ -1401,4 +1401,152 @@ fn xaddu_direct_sets_flags_discards_result() {
     assert_eq!(cpu.registers().u, 0x00FF); // U unchanged
     assert!(cpu.registers().cc.carry());
     assert!(cpu.registers().cc.zero());
+}
+
+// ---- Interrupt line handling ----
+
+/// Helper: set up a CPU with a stack, I/F bits cleared, and two vectors pointing
+/// at simple RTI handlers.
+fn setup_irq_test() -> (Cpu, TestMem) {
+    let (mut cpu, mut mem) = setup(&[0x12], 0x0400); // NOP at program entry
+    cpu.registers_mut().s = 0x0C00;
+    // Clear I and F so interrupts are unmasked
+    cpu.registers_mut().cc.set_irq_inhibit(false);
+    cpu.registers_mut().cc.set_firq_inhibit(false);
+    // IRQ vector → 0x0500, FIRQ vector → 0x0600
+    mem.mem[0xFFF8] = 0x05;
+    mem.mem[0xFFF9] = 0x00;
+    mem.mem[0xFFF6] = 0x06;
+    mem.mem[0xFFF7] = 0x00;
+    // RTI at each handler address
+    mem.mem[0x0500] = 0x3B; // RTI
+    mem.mem[0x0600] = 0x3B; // RTI
+    (cpu, mem)
+}
+
+#[test]
+fn irq_line_stays_asserted_after_handler_entry() {
+    // After the CPU takes an IRQ and enters the handler, the IRQ line must still
+    // be held so that RTI (which restores I=0) re-triggers the interrupt if the
+    // peripheral has not de-asserted in the meantime.
+    let (mut cpu, mut mem) = setup_irq_test();
+
+    cpu.set_irq(true);
+
+    // Step 1: takes IRQ, jumps to handler
+    cpu.step(&mut mem);
+    assert_eq!(cpu.registers().pc, 0x0500, "should be in IRQ handler");
+    assert!(cpu.registers().cc.irq_inhibit(), "I bit set by handler entry");
+
+    // Step 2: RTI — restores the saved CC (I=0), returns to 0x0400
+    cpu.step(&mut mem);
+    assert_eq!(cpu.registers().pc, 0x0400);
+    assert!(!cpu.registers().cc.irq_inhibit(), "I bit restored by RTI");
+
+    // Step 3: IRQ line still asserted by peripheral → fires again immediately
+    cpu.step(&mut mem);
+    assert_eq!(cpu.registers().pc, 0x0500, "IRQ should re-fire after RTI");
+}
+
+#[test]
+fn firq_line_stays_asserted_after_handler_entry() {
+    let (mut cpu, mut mem) = setup_irq_test();
+
+    cpu.set_firq(true);
+
+    cpu.step(&mut mem); // takes FIRQ
+    assert_eq!(cpu.registers().pc, 0x0600, "should be in FIRQ handler");
+    assert!(cpu.registers().cc.firq_inhibit());
+
+    cpu.step(&mut mem); // RTI
+    assert_eq!(cpu.registers().pc, 0x0400);
+
+    cpu.step(&mut mem); // FIRQ re-fires
+    assert_eq!(cpu.registers().pc, 0x0600, "FIRQ should re-fire after RTI");
+}
+
+#[test]
+fn irq_masked_while_handler_runs() {
+    // The IRQ line is held but the I bit is set during the handler — the CPU
+    // must NOT take a second IRQ entry while inside the handler.
+    let (mut cpu, mut mem) = setup_irq_test();
+    // Write a two-NOP handler before RTI to give us something to step through
+    mem.mem[0x0500] = 0x12; // NOP
+    mem.mem[0x0501] = 0x12; // NOP
+    mem.mem[0x0502] = 0x3B; // RTI
+
+    cpu.set_irq(true);
+    cpu.step(&mut mem); // takes IRQ → 0x0500
+    assert_eq!(cpu.registers().pc, 0x0500);
+
+    cpu.step(&mut mem); // NOP — I bit set, IRQ masked
+    assert_eq!(cpu.registers().pc, 0x0501, "should advance through handler, not re-enter IRQ");
+
+    cpu.step(&mut mem); // NOP
+    assert_eq!(cpu.registers().pc, 0x0502);
+}
+
+#[test]
+fn set_irq_false_de_asserts_line() {
+    let (mut cpu, mut mem) = setup_irq_test();
+
+    cpu.set_irq(true);
+    cpu.step(&mut mem); // takes IRQ
+    assert_eq!(cpu.registers().pc, 0x0500);
+
+    // Peripheral services itself and de-asserts the line
+    cpu.set_irq(false);
+
+    cpu.step(&mut mem); // RTI → back to 0x0400
+    cpu.step(&mut mem); // IRQ de-asserted — should execute NOP, not re-enter handler
+    assert_eq!(cpu.registers().pc, 0x0401, "IRQ de-asserted, should run program");
+}
+
+#[test]
+fn cwai_idles_until_irq() {
+    // CWAI 0xAF clears F(bit6) and I(bit4): 0b10101111 ANDed into CC.
+    let (mut cpu, mut mem) = setup(&[0x3C, 0xAF], 0x0400);
+    cpu.registers_mut().s = 0x0C00;
+    mem.mem[0xFFF8] = 0x05;
+    mem.mem[0xFFF9] = 0x00;
+    mem.mem[0x0500] = 0x3B; // RTI
+
+    let cyc = cpu.step(&mut mem); // executes CWAI: pushes state, sets cwai
+    assert!(cyc > 1, "CWAI should take several cycles");
+    assert_eq!(cpu.registers().pc, 0x0402, "PC advanced past CWAI operand");
+
+    // With no interrupt, subsequent steps should idle (1 cycle each), not advance PC
+    for _ in 0..3 {
+        let c = cpu.step(&mut mem);
+        assert_eq!(c, 1, "CWAI should idle with 1 cycle while waiting");
+        assert_eq!(cpu.registers().pc, 0x0402, "PC must not advance during CWAI wait");
+    }
+
+    // Assert IRQ — next step should service it without re-pushing state
+    cpu.set_irq(true);
+    cpu.step(&mut mem);
+    assert_eq!(cpu.registers().pc, 0x0500, "CWAI should wake on IRQ");
+}
+
+#[test]
+fn apply_signals_nmi_edge_detection() {
+    // apply_signals must trigger NMI only on the rising edge, not while held.
+    let (mut cpu, mut mem) = setup(&[0x12], 0x0400);
+    cpu.registers_mut().s = 0x0C00; // arm NMI
+    mem.mem[0xFFFC] = 0x05;
+    mem.mem[0xFFFD] = 0x00;
+    mem.mem[0x0500] = 0x3B; // RTI
+
+    // Rising edge: prev=0, cur=NMI
+    cpu.apply_signals(BusSignals::NMI, BusSignals::default());
+    cpu.step(&mut mem); // takes NMI
+    assert_eq!(cpu.registers().pc, 0x0500);
+
+    cpu.step(&mut mem); // RTI
+    assert_eq!(cpu.registers().pc, 0x0400);
+
+    // NMI held (no new edge): apply_signals with same prev and cur
+    cpu.apply_signals(BusSignals::NMI, BusSignals::NMI);
+    cpu.step(&mut mem); // must NOT re-trigger NMI
+    assert_eq!(cpu.registers().pc, 0x0401, "held NMI must not re-trigger");
 }
