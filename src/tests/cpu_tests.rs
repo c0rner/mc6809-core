@@ -1436,7 +1436,10 @@ fn irq_line_stays_asserted_after_handler_entry() {
     // Step 1: takes IRQ, jumps to handler
     cpu.step(&mut mem);
     assert_eq!(cpu.registers().pc, 0x0500, "should be in IRQ handler");
-    assert!(cpu.registers().cc.irq_inhibit(), "I bit set by handler entry");
+    assert!(
+        cpu.registers().cc.irq_inhibit(),
+        "I bit set by handler entry"
+    );
 
     // Step 2: RTI — restores the saved CC (I=0), returns to 0x0400
     cpu.step(&mut mem);
@@ -1480,7 +1483,11 @@ fn irq_masked_while_handler_runs() {
     assert_eq!(cpu.registers().pc, 0x0500);
 
     cpu.step(&mut mem); // NOP — I bit set, IRQ masked
-    assert_eq!(cpu.registers().pc, 0x0501, "should advance through handler, not re-enter IRQ");
+    assert_eq!(
+        cpu.registers().pc,
+        0x0501,
+        "should advance through handler, not re-enter IRQ"
+    );
 
     cpu.step(&mut mem); // NOP
     assert_eq!(cpu.registers().pc, 0x0502);
@@ -1499,7 +1506,11 @@ fn set_irq_false_de_asserts_line() {
 
     cpu.step(&mut mem); // RTI → back to 0x0400
     cpu.step(&mut mem); // IRQ de-asserted — should execute NOP, not re-enter handler
-    assert_eq!(cpu.registers().pc, 0x0401, "IRQ de-asserted, should run program");
+    assert_eq!(
+        cpu.registers().pc,
+        0x0401,
+        "IRQ de-asserted, should run program"
+    );
 }
 
 #[test]
@@ -1519,7 +1530,11 @@ fn cwai_idles_until_irq() {
     for _ in 0..3 {
         let c = cpu.step(&mut mem);
         assert_eq!(c, 1, "CWAI should idle with 1 cycle while waiting");
-        assert_eq!(cpu.registers().pc, 0x0402, "PC must not advance during CWAI wait");
+        assert_eq!(
+            cpu.registers().pc,
+            0x0402,
+            "PC must not advance during CWAI wait"
+        );
     }
 
     // Assert IRQ — next step should service it without re-pushing state
