@@ -34,7 +34,7 @@ use std::ops::{BitAnd, BitAndAssign, BitOr, BitOrAssign, BitXor, BitXorAssign, N
 pub struct BusSignals(u8);
 
 impl BusSignals {
-    /// NMI pin state (level). [`Cpu::apply_signals`] detects the rising edge.
+    /// NMI pin state (level).
     pub const NMI: Self = Self(0x01);
     /// FIRQ line state (active = asserted, level-triggered).
     pub const FIRQ: Self = Self(0x02);

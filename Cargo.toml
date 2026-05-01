@@ -1,13 +1,14 @@
 [package]
 name = "mc6809-core"
 description = "Motorola 6809 CPU emulator core"
-version = "0.2.0"
+version = "0.3.0"
 edition = "2024"
 license = "Apache-2.0"
 keywords = ["6809", "mc6809", "emulator", "motorola"]
 categories = ["emulators", "embedded"]
 readme = "README.md"
 repository = "https://github.com/c0rner/mc6809-core"
+documentation = "https://crates.io/crates/mc6809-core"
 include = ["/src"]
 
 [lib]

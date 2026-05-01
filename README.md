@@ -34,24 +34,40 @@ assert_eq!(cpu.registers().pc, 0x0401);
 ```
 
 Systems with peripherals implement both traits on the same type. The `Memory` trait is
-passed to the CPU, while `Clocked::tick` is called separately by the host loop:
+passed to the CPU, while `Clocked::tick` is called separately by the host loop.
+The preferred way to feed signals into the CPU is `Cpu::apply_signals`, which handles
+NMI edge detection internally:
 
 ```rust
-let signals = system.tick(elapsed_cycles);
-// IRQ and FIRQ are level-triggered: always mirror both asserted and
-// de-asserted state so the CPU sees a cleared state.
-cpu.set_irq(signals.contains(BusSignals::IRQ));
-cpu.set_firq(signals.contains(BusSignals::FIRQ));
-if signals.contains(BusSignals::NMI) {
-    cpu.trigger_nmi();
-}
-if signals.contains(BusSignals::RESET) {
-    cpu.reset(&mut system);
-}
-if cpu.illegal() {
-    // Optional host policy: stop, log, or ignore.
+let mut prev_signals = BusSignals::default();
+
+loop {
+    let cycles = cpu.step(&mut system);
+    let signals = system.tick(cycles);
+
+    // RESET is handled before apply_signals so a held-RESET pin keeps the
+    // CPU quiescent and is not confused with a regular interrupt transition.
+    if signals.contains(BusSignals::RESET) {
+        cpu.reset(&mut system);
+        prev_signals = BusSignals::default();
+        continue;
+    }
+
+    // Only call into the CPU when something actually changed on the bus.
+    if signals != prev_signals {
+        cpu.apply_signals(signals, prev_signals);
+        prev_signals = signals;
+    }
+
+    if cpu.halted() { break; }
+    if cpu.illegal() {
+        // Optional host policy: stop, log, or ignore.
+    }
 }
 ```
+
+The individual `cpu.set_irq()`, `cpu.set_firq()`, and `cpu.trigger_nmi()` methods are
+still available for simpler setups where NMI edge detection is handled by the caller.
 
 Behavior notes
 - Illegal opcodes set `Cpu::illegal()` but do not halt the CPU. This matches the default 6809-style execution model and leaves trap/stop policy to the host.
