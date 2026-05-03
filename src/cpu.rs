@@ -39,7 +39,7 @@ pub const VEC_SWI3: u16 = 0xFFF2;
 /// Motorola 6809 CPU emulator.
 pub struct Cpu {
     /// Programmer-visible registers.
-    reg: Registers,
+    pub(super) reg: Registers,
     /// Total elapsed cycles since reset.
     cycles: u64,
     /// CPU execution has been explicitly halted by an instruction.

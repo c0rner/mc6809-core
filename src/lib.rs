@@ -47,8 +47,9 @@
 //! assert_eq!(cpu.registers().pc, 0x0401);
 //! ```
 
-pub mod addressing;
-pub mod alu;
+pub(crate) mod addressing;
+pub(crate) mod alu;
+
 mod cpu;
 pub mod memory;
 pub mod peripheral;
