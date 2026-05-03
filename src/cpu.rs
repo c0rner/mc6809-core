@@ -37,6 +37,7 @@ pub const VEC_SWI3: u16 = 0xFFF2;
 // ---------------------------------------------------------------------------
 
 /// Motorola 6809 CPU emulator.
+#[derive(Clone)]
 pub struct Cpu {
     /// Programmer-visible registers.
     pub(super) reg: Registers,
