@@ -68,7 +68,7 @@ pub(super) fn cycles(sub: u8) -> u8 {
     PAGE1_CYCLES[sub as usize]
 }
 
-pub fn execute(cpu: &mut Cpu, mem: &mut impl Memory, opcode: u8) {
+pub(super) fn execute(cpu: &mut Cpu, mem: &mut impl Memory, opcode: u8) {
     cpu.cycles += PAGE1_CYCLES[opcode as usize] as u64;
 
     match opcode {
