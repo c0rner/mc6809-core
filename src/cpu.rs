@@ -242,7 +242,10 @@ impl Cpu {
     }
 
     /// Execute a single instruction (or handle a pending interrupt).
-    /// Returns the number of cycles consumed.
+    /// Returns the number of cycles consumed or ZERO if the CPU is halted.
+    ///
+    /// Warning! Busy-loops in host code that doesn't check [`Self::halted`]
+    /// can lead to high CPU usage.
     ///
     /// If the decoded instruction is illegal, the CPU records that in
     /// [`Self::illegal`] and continues execution unless the caller chooses to
