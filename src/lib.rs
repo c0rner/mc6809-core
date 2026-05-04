@@ -12,7 +12,7 @@
 //   See the License for the specific language governing permissions and
 //   limitations under the License.
 
-//! # emu6809-core
+//! # mc6809-core
 //!
 //! A Motorola 6809 CPU emulator core.
 //!
@@ -47,8 +47,9 @@
 //! assert_eq!(cpu.registers().pc, 0x0401);
 //! ```
 
-pub mod addressing;
-pub mod alu;
+pub(crate) mod addressing;
+pub(crate) mod alu;
+
 mod cpu;
 pub mod memory;
 pub mod peripheral;

@@ -140,7 +140,6 @@ impl fmt::Debug for BusSignals {
     }
 }
 
-///
 /// Implement this trait for any peripheral that needs to track CPU cycles and
 /// signal interrupts. The host loop calls [`tick`](Clocked::tick) after each CPU
 /// step (or batch of steps), then feeds the returned [`BusSignals`] into the

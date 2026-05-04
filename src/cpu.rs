@@ -37,9 +37,10 @@ pub const VEC_SWI3: u16 = 0xFFF2;
 // ---------------------------------------------------------------------------
 
 /// Motorola 6809 CPU emulator.
+#[derive(Clone)]
 pub struct Cpu {
     /// Programmer-visible registers.
-    reg: Registers,
+    pub(super) reg: Registers,
     /// Total elapsed cycles since reset.
     cycles: u64,
     /// CPU execution has been explicitly halted by an instruction.
@@ -241,14 +242,17 @@ impl Cpu {
     }
 
     /// Execute a single instruction (or handle a pending interrupt).
-    /// Returns the number of cycles consumed.
+    /// Returns the number of cycles consumed or ZERO if the CPU is halted.
+    ///
+    /// Warning! Busy-loops in host code that doesn't check [`Self::halted`]
+    /// can lead to high CPU usage.
     ///
     /// If the decoded instruction is illegal, the CPU records that in
     /// [`Self::illegal`] and continues execution unless the caller chooses to
     /// stop.
     pub fn step(&mut self, mem: &mut impl Memory) -> u64 {
         if self.halted {
-            return 1;
+            return 0;
         }
 
         let start_cycles = self.cycles;
@@ -362,7 +366,8 @@ impl Cpu {
         mem.write(self.reg.s, val);
     }
 
-    /// Push a 16-bit word onto the hardware stack (S), low byte first.
+    /// Push a 16-bit word onto the hardware stack (S), low byte first
+    /// using write_word() which is ok because stack grows downwards.
     pub(super) fn push_word_s(&mut self, mem: &mut impl Memory, val: u16) {
         self.reg.s = self.reg.s.wrapping_sub(2);
         mem.write_word(self.reg.s, val);
