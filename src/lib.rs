@@ -12,7 +12,7 @@
 //   See the License for the specific language governing permissions and
 //   limitations under the License.
 
-//! # emu6809-core
+//! # mc6809-core
 //!
 //! A Motorola 6809 CPU emulator core.
 //!
