@@ -252,7 +252,7 @@ impl Cpu {
     /// stop.
     pub fn step(&mut self, mem: &mut impl Memory) -> u64 {
         if self.halted {
-            return 1;
+            return 0;
         }
 
         let start_cycles = self.cycles;
