@@ -8,6 +8,14 @@ Features
 - A `Clocked` trait for peripheral timing and interrupt signal delivery, kept separate from memory access
 - Lightweight API suitable for embedding in emulators, disassemblers, and debuggers
 
+[![Crates.io][crates-badge]][crates-url]
+[![Apache licensed][license-badge]][license-url]
+
+[crates-badge]: https://img.shields.io/crates/v/mc6809-core
+[crates-url]: https://crates.io/crates/mc6809-core
+[license-badge]: https://img.shields.io/badge/license-Apache_2.0-blue.svg
+[license-url]: https://github.com/c0rner/mc6809-core/blob/main/LICENSE
+
 Quick example
 ```rust
 use mc6809_core::{Cpu, Memory};
