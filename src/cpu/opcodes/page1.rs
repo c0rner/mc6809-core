@@ -402,7 +402,7 @@ pub(super) fn execute(cpu: &mut Cpu, mem: &mut impl Memory, opcode: u8) {
         _ => {
             // 1 cycle already consumed by the page prefix fetch
             //debug!("Illegal Page 1 opcode: 0x10 {:02X}", opcode);
-            cpu.illegal = true;
+            cpu.set_illegal();
         }
     }
 }

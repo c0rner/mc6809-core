@@ -49,3 +49,26 @@ fn mc6809_integration() {
         }
     }
 }
+
+#[test]
+fn halt_on_invalid_opcode() {
+    let mut system = TestHarness::new();
+    // 0x87 is an illegal opcode
+    system.load(&[0x87], 0x1000);
+    // Set reset vector to 0x1000
+    system.load(&[0x10, 0x00], 0xFFFE);
+
+    // Run without halt_on_invalid
+    let mut cpu = Cpu::new();
+    cpu.reset(&mut system);
+    cpu.step(&mut system);
+    assert!(cpu.illegal());
+    assert!(!cpu.halted());
+
+    // Run with halt_on_invalid
+    let mut cpu2 = Cpu::new().with_halt_on_invalid(true);
+    cpu2.reset(&mut system);
+    cpu2.step(&mut system);
+    assert!(cpu2.illegal());
+    assert!(cpu2.halted());
+}

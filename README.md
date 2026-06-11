@@ -78,7 +78,7 @@ The individual `cpu.set_irq()`, `cpu.set_firq()`, and `cpu.trigger_nmi()` method
 still available for simpler setups where NMI edge detection is handled by the caller.
 
 Behavior notes
-- Illegal opcodes set `Cpu::illegal()` but do not halt the CPU. This matches the default 6809-style execution model and leaves trap/stop policy to the host.
+- Illegal opcodes set `Cpu::illegal()` but do not halt the CPU by default. This matches the default 6809-style execution model and leaves trap/stop policy to the host. You can configure the CPU to automatically halt on illegal instructions using `Cpu::new().with_halt_on_invalid(true)`.
 - Repeated page-prefix chaining (`0x10`/`0x11` after an initial page prefix) is intentionally not implemented. Only a single leading page prefix is recognised.
 
 Building and testing
