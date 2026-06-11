@@ -62,6 +62,8 @@ pub struct Cpu {
     cwai: bool,
     /// SYNC: waiting for any interrupt edge.
     sync: bool,
+    /// Halt on invalid instructions
+    halt_on_invalid: bool,
 }
 
 impl Cpu {
@@ -76,7 +78,14 @@ impl Cpu {
             int_lines: BusSignals::default(),
             cwai: false,
             sync: false,
+            halt_on_invalid: false,
         }
+    }
+
+    /// Set whether the CPU halts on invalid instructions.
+    pub fn with_halt_on_invalid(mut self, halt: bool) -> Self {
+        self.halt_on_invalid = halt;
+        self
     }
 
     /// Hardware reset: read PC from reset vector, set I+F, clear state.
@@ -156,6 +165,14 @@ impl Cpu {
     /// Clear the illegal opcode flag.
     pub fn clear_illegal(&mut self) {
         self.illegal = false;
+    }
+
+    /// Mark an illegal instruction as executed.
+    pub(super) fn set_illegal(&mut self) {
+        self.illegal = true;
+        if self.halt_on_invalid {
+            self.halted = true;
+        }
     }
 
     /// Assert or de-assert the IRQ line (level-triggered).
