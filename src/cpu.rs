@@ -143,7 +143,8 @@ impl Cpu {
     /// `true` if the CPU has been halted by a halt instruction.
     ///
     /// Illegal opcodes do not set this flag; they only set [`Self::illegal`]
-    /// so the host can decide whether to keep running or stop.
+    /// so the host can decide whether to keep running or stop unless
+    /// `halt_on_invalid` is set, in which case illegal opcodes also set `halted`.
     pub fn halted(&self) -> bool {
         self.halted
     }
@@ -266,7 +267,7 @@ impl Cpu {
     ///
     /// If the decoded instruction is illegal, the CPU records that in
     /// [`Self::illegal`] and continues execution unless the caller chooses to
-    /// stop.
+    /// stop or `halt_on_invalid`` is set.
     pub fn step(&mut self, mem: &mut impl Memory) -> u64 {
         if self.halted {
             return 0;
@@ -312,7 +313,7 @@ impl Cpu {
     ///
     /// This method stops only when the cycle budget is exhausted or
     /// [`Self::halted`] becomes true. Illegal opcodes do not stop `run`; check
-    /// [`Self::illegal`] in the host loop if that policy is desired.
+    /// [`Self::illegal`] in the host loop or set `halt_on_invalid`.
     pub fn run(&mut self, mem: &mut impl Memory, cycle_budget: u64) -> u64 {
         let start_cycles = self.cycles;
         let target = self.cycles + cycle_budget;
