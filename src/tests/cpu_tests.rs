@@ -19,11 +19,15 @@ use crate::{BusSignals, Cpu, Memory, registers::CC_E};
 /// Simple 64KB flat RAM mem for testing.
 struct TestMem {
     mem: [u8; 65536],
+    writes: Vec<(u16, u8)>,
 }
 
 impl TestMem {
     fn new() -> Self {
-        Self { mem: [0u8; 65536] }
+        Self {
+            mem: [0u8; 65536],
+            writes: Vec::new(),
+        }
     }
 
     fn set_reset_vector(&mut self, addr: u16) {
@@ -48,6 +52,7 @@ impl Memory for TestMem {
     }
     fn write(&mut self, addr: u16, val: u8) {
         println!("TestBus: Write {:04X} = {:02X}", addr, val);
+        self.writes.push((addr, val));
         self.mem[addr as usize] = val;
     }
 }
@@ -340,6 +345,28 @@ fn jsr_extended_rts() {
 }
 
 // ---- Stack tests ----
+
+#[test]
+fn pshs_writes_word_low_byte_first() {
+    let (mut cpu, mut mem) = setup(&[0x34, 0x10], 0x0400); // PSHS X
+    cpu.registers_mut().s = 0x1000;
+    cpu.registers_mut().x = 0x1234;
+
+    assert_eq!(cpu.step(&mut mem), 7);
+    assert_eq!(mem.writes, [(0x0FFF, 0x34), (0x0FFE, 0x12)]);
+    assert_eq!(cpu.registers().s, 0x0FFE);
+}
+
+#[test]
+fn pshu_writes_word_low_byte_first_across_address_wrap() {
+    let (mut cpu, mut mem) = setup(&[0x36, 0x10], 0x0400); // PSHU X
+    cpu.registers_mut().u = 0x0001;
+    cpu.registers_mut().x = 0x1234;
+
+    assert_eq!(cpu.step(&mut mem), 7);
+    assert_eq!(mem.writes, [(0x0000, 0x34), (0xFFFF, 0x12)]);
+    assert_eq!(cpu.registers().u, 0xFFFF);
+}
 
 #[test]
 fn pshs_puls_a() {

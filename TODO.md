@@ -1,3 +1,9 @@
+## Bug fixes
+- [x] Write the low byte first on 16-bit pushes to either stack (`S` or `U`).
+  Debuggers and other `Memory` implementations observe the order of writes.
+  Regression case: `PSHS X` with `X = $1234` and `S = $1000` must write `$34`
+  to `$0FFF` first, then `$12` to `$0FFE`.
+
 ## Minor features
 - [ ] Add counter for missed interrupts (IRQ, FIRQ)
 
