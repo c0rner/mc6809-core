@@ -384,11 +384,11 @@ impl Cpu {
         mem.write(self.reg.s, val);
     }
 
-    /// Push a 16-bit word onto the hardware stack (S), low byte first
-    /// using write_word() which is ok because stack grows downwards.
+    /// Push a 16-bit word onto the hardware stack (S), low byte first.
     pub(super) fn push_word_s(&mut self, mem: &mut impl Memory, val: u16) {
-        self.reg.s = self.reg.s.wrapping_sub(2);
-        mem.write_word(self.reg.s, val);
+        let [high, low] = val.to_be_bytes();
+        self.push_byte_s(mem, low);
+        self.push_byte_s(mem, high);
     }
 
     /// Pull a byte from the hardware stack (S).
@@ -411,10 +411,11 @@ impl Cpu {
         mem.write(self.reg.u, val);
     }
 
-    /// Push a 16-bit word onto the user stack (U).
+    /// Push a 16-bit word onto the user stack (U), low byte first.
     pub(super) fn push_word_u(&mut self, mem: &mut impl Memory, val: u16) {
-        self.reg.u = self.reg.u.wrapping_sub(2);
-        mem.write_word(self.reg.u, val);
+        let [high, low] = val.to_be_bytes();
+        self.push_byte_u(mem, low);
+        self.push_byte_u(mem, high);
     }
 
     /// Pull a byte from the user stack (U).

@@ -7,8 +7,13 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ## [Unreleased]
 
+## [0.4.0] - 2026-11-25
+
 ### Added
 - `Cpu::new().with_halt_on_invalid(true)` configuration option to automatically halt execution when encountering an illegal/invalid opcode.
+
+### Fixed
+- **BREAKING** 16-bit pushes onto either stack now write the low byte first, matching the MC6809. Custom `Memory` implementations receive two `Memory::write` calls for each pushed word. Stack write tracing and side effects for these pushes belong in `Memory::write`.
 
 ## [0.3.2] - 2026-05-04
 
@@ -83,7 +88,8 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 - `Bus` trait for pluggable memory and I/O backends
 - `alu`, `addressing`, `bus`, and `registers` public modules
 
-[Unreleased]: https://github.com/c0rner/mc6809-core/compare/v0.3.2...HEAD
+[Unreleased]: https://github.com/c0rner/mc6809-core/compare/v0.4.0...HEAD
+[0.4.0]: https://github.com/c0rner/mc6809-core/compare/v0.3.2...v0.4.0
 [0.3.2]: https://github.com/c0rner/mc6809-core/compare/v0.3.1...v0.3.2
 [0.3.1]: https://github.com/c0rner/mc6809-core/compare/v0.2.0...v0.3.1
 [0.2.0]: https://github.com/c0rner/mc6809-core/compare/v0.1.2...v0.2.0
